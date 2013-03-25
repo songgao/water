@@ -69,15 +69,15 @@ You'll see the `main.go` print something like:
 ```
 <nil>, &{true 0xf84003f058 tap0}
 
-Source:      42:35:da:af:2b:00 [10.10.10.1]
-Destination: ff:ff:ff:ff:ff:ff [10.10.10.255]
+Source:      42:35:da:af:2b:00 [10.0.0.1]
+Destination: ff:ff:ff:ff:ff:ff [10.0.0.255]
 Protocol:    1
 
-Source:      42:35:da:af:2b:00 [10.10.10.1]
-Destination: ff:ff:ff:ff:ff:ff [10.10.10.255]
+Source:      42:35:da:af:2b:00 [10.0.0.1]
+Destination: ff:ff:ff:ff:ff:ff [10.0.0.255]
 Protocol:    1
 
-Source:      42:35:da:af:2b:00 [10.10.10.1]
-Destination: ff:ff:ff:ff:ff:ff [10.10.10.255]
+Source:      42:35:da:af:2b:00 [10.0.0.1]
+Destination: ff:ff:ff:ff:ff:ff [10.0.0.255]
 Protocol:    1
 ```
