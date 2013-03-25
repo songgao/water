@@ -11,6 +11,7 @@ go get -u github.com/songgao/water/waterutil
 
 ## Documentation
 [http://godoc.org/github.com/songgao/water](http://godoc.org/github.com/songgao/water)
+[http://godoc.org/github.com/songgao/water/waterutil](http://godoc.org/github.com/songgao/water/waterutil)
 
 ## Example
 
