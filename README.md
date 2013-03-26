@@ -91,3 +91,9 @@ Protocol:    1
 ## TODO
 * IPv6 Support in `waterutil`
 * Darwin(Mac) Support
+
+## LICENSE
+GNU LESSER GENERAL PUBLIC LICENSE Version 3
+
+## Alternatives
+`tuntap`: [https://code.google.com/p/tuntap/](https://code.google.com/p/tuntap/)
