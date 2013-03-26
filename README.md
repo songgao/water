@@ -1,7 +1,13 @@
 # water
-`water` is a native Go library for `TUN`/`TAP` interfaces. It's designed to be simple and scalable. `water` wraps almost only syscalls and uses only Go standard types, so it plays well with standard packages like `io`, `bufio`, etc.
+`water` is a native Go library for [TUN/TAP](http://en.wikipedia.org/wiki/TUN/TAP) interfaces.
 
-`water/waterutil` has some useful functions to interpret MAC farme headers and IP packet headers.
+`water` is designed to be simple and efficient. It
+
+* wraps almost only syscalls and uses only Go standard types;
+* exposes standard interfaces; plays well with standard packages like `io`, `bufio`, etc..
+* does not handle memory management (allocating/destructing slice). It's up to user to decide how to deal with buffers; whether to use GC.
+
+`water/waterutil` has some useful functions to interpret MAC farme headers and IP packet headers. It also contains some constants such as protocol numbers and ethernet frame types.
 
 ## Installation
 ```
@@ -81,3 +87,7 @@ Source:      42:35:da:af:2b:00 [10.0.0.1]
 Destination: ff:ff:ff:ff:ff:ff [10.0.0.255]
 Protocol:    1
 ```
+
+## TODO
+* IPv6 Support in `waterutil`
+* Darwin(Mac) Support
