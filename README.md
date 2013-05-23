@@ -93,7 +93,7 @@ Protocol:    1
 * Darwin(Mac) Support
 
 ## LICENSE
-GNU LESSER GENERAL PUBLIC LICENSE Version 3
+[BSD 3-Clause License](http://opensource.org/licenses/BSD-3-Clause)
 
 ## Alternatives
 `tuntap`: [https://code.google.com/p/tuntap/](https://code.google.com/p/tuntap/)
