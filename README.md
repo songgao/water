@@ -7,7 +7,7 @@
 * exposes standard interfaces; plays well with standard packages like `io`, `bufio`, etc..
 * does not handle memory management (allocating/destructing slice). It's up to user to decide how to deal with buffers; whether to use GC.
 
-`water/waterutil` has some useful functions to interpret MAC farme headers and IP packet headers. It also contains some constants such as protocol numbers and ethernet frame types.
+`water/waterutil` has some useful functions to interpret MAC frame headers and IP packet headers. It also contains some constants such as protocol numbers and ethernet frame types.
 
 ## Installation
 ```
