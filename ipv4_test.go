@@ -11,13 +11,6 @@ import (
 
 const BUFFERSIZE = 1522
 
-func startTimeout(ch chan<- bool, t time.Duration) {
-	go func() {
-		time.Sleep(t)
-		ch <- true
-	}()
-}
-
 func startRead(ch chan<- []byte, ifce *Interface) {
 	go func() {
 		for {
@@ -54,8 +47,7 @@ func TestBroadcast(t *testing.T) {
 	dataCh := make(chan []byte, 8)
 	startRead(dataCh, ifce)
 
-	timeout := make(chan bool, 1)
-	startTimeout(timeout, time.Second*8)
+	timeout := time.NewTimer(8 * time.Second).C
 
 readFrame:
 	for {
