@@ -38,7 +38,7 @@ func TestBroadcast(t *testing.T) {
 
 	ifce, err := NewTAP("test")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("creating TAP error: %v\n", err)
 	}
 
 	setupIfce(t, net.IPNet{IP: self, Mask: mask}, ifce.Name())
