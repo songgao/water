@@ -1,14 +1,12 @@
 package water
 
-import (
-	"os"
-)
+import "io"
 
 // Interface is a TUN/TAP interface.
 type Interface struct {
 	isTAP bool
-	file  *os.File
-	name  string
+	io.ReadWriteCloser
+	name string
 }
 
 // Create a new TAP interface whose name is ifName.
@@ -38,16 +36,4 @@ func (ifce *Interface) IsTAP() bool {
 // Returns the interface name of ifce, e.g. tun0, tap1, etc..
 func (ifce *Interface) Name() string {
 	return ifce.name
-}
-
-// Implement io.Writer interface.
-func (ifce *Interface) Write(p []byte) (n int, err error) {
-	n, err = ifce.file.Write(p)
-	return
-}
-
-// Implement io.Reader interface.
-func (ifce *Interface) Read(p []byte) (n int, err error) {
-	n, err = ifce.file.Read(p)
-	return
 }
