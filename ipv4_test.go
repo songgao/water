@@ -15,8 +15,9 @@ func startRead(ch chan<- []byte, ifce *Interface) {
 	go func() {
 		for {
 			buffer := make([]byte, BUFFERSIZE)
-			_, err := ifce.Read(buffer)
+			n, err := ifce.Read(buffer)
 			if err == nil {
+				buffer = buffer[:n:n]
 				ch <- buffer
 			}
 		}
@@ -73,6 +74,7 @@ readFrame:
 			if waterutil.IPv4Protocol(packet) != waterutil.ICMP {
 				continue readFrame
 			}
+			t.Logf("received broadcast frame: %#v\n", buffer)
 			break readFrame
 		case <-timeout:
 			t.Fatal("Waiting for broadcast packet timeout")
