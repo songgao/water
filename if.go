@@ -9,31 +9,31 @@ type Interface struct {
 	name string
 }
 
-// Create a new TAP interface whose name is ifName.
-// If ifName is empty, a default name (tap0, tap1, ... ) will be assigned.
-// ifName should not exceed 16 bytes.
+// NewTAP creates a new TAP interface whose name is ifName. If ifName is empty, a
+// default name (tap0, tap1, ... ) will be assigned. ifName should not exceed
+// 16 bytes. TAP interfaces are not supported on darwin.
 func NewTAP(ifName string) (ifce *Interface, err error) {
 	return newTAP(ifName)
 }
 
-// Create a new TUN interface whose name is ifName.
-// If ifName is empty, a default name (tap0, tap1, ... ) will be assigned.
-// ifName should not exceed 16 bytes.
+// NewTUN creates a new TUN interface whose name is ifName. If ifName is empty, a
+// default name (tap0, tap1, ... ) will be assigned. ifName should not exceed
+// 16 bytes. Setting interface name is NOT supported on darwin.
 func NewTUN(ifName string) (ifce *Interface, err error) {
 	return newTUN(ifName)
 }
 
-// Returns true if ifce is a TUN interface, otherwise returns false;
+// IsTUN returns true if ifce is a TUN interface.
 func (ifce *Interface) IsTUN() bool {
 	return !ifce.isTAP
 }
 
-// Returns true if ifce is a TAP interface, otherwise returns false;
+// IsTAP returns true if ifce is a TAP interface.
 func (ifce *Interface) IsTAP() bool {
 	return ifce.isTAP
 }
 
-// Returns the interface name of ifce, e.g. tun0, tap1, etc..
+// Name returns the interface name of ifce, e.g. tun0, tap1, tun0, etc..
 func (ifce *Interface) Name() string {
 	return ifce.name
 }

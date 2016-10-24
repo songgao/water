@@ -1,4 +1,4 @@
-// +build !linux
+// +build NOT (linux OR darwin)
 
 package water
 
