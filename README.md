@@ -146,8 +146,5 @@ You'd see the ICMP packets printed out:
 ## TODO
 * tuntaposx for TAP on Darwin
 
-## LICENSE
-[BSD 3-Clause License](http://opensource.org/licenses/BSD-3-Clause)
-
 ## Alternatives
 `tuntap`: [https://code.google.com/p/tuntap/](https://code.google.com/p/tuntap/)
