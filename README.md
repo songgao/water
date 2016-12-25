@@ -15,6 +15,7 @@ See https://github.com/songgao/packets for functions for parsing various packets
 ## Supported Platforms
 
 * Linux
+* Windows
 * macOS (point-to-point TUN only)
 
 ## Installation
@@ -142,6 +143,67 @@ You'd see the ICMP packets printed out:
 2016/10/23 20:21:53 Interface Name: utun2
 2016/10/23 20:22:40 Packet Received: 00 00 00 02 45 00 00 54 4a 2e 00 00 40 01 1c 5c 0a 01 00 0a 0a 01 00 14 08 00 31 51 f0 f9 00 00 58 0d 7e 80 00 03 14 21 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20 21 22 23 24 25 26 27 28 29 2a 2b 2c 2d 2e 2f 30 31 32 33 34 35 36 37
 ```
+
+### TAP on Windows:
+
+To use it with windows, you will need to install a [tap driver](https://github.com/OpenVPN/tap-windows6), or [OpenVPN client](https://github.com/OpenVPN/openvpn) for windows.
+
+It's compatible with the Linux code.
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/songgao/packets/ethernet"
+	"github.com/songgao/water"
+)
+
+func main() {
+	ifce, err := water.NewTAP("O_O")
+	if err != nil {
+		log.Fatal(err)
+	}
+	var frame ethernet.Frame
+
+	for {
+		frame.Resize(1500)
+		n, err := ifce.Read([]byte(frame))
+		if err != nil {
+			log.Fatal(err)
+		}
+		frame = frame[:n]
+		log.Printf("Dst: %s\n", frame.Destination())
+		log.Printf("Src: %s\n", frame.Source())
+		log.Printf("Ethertype: % x\n", frame.Ethertype())
+		log.Printf("Payload: % x\n", frame.Payload())
+	}
+}
+```
+
+Same as Linux version, but you don't need to bring up the device by hand, the only thing you need is to assign an IP address to it. You will need admin right to assign IP.
+
+```dos
+go run main.go
+```
+
+If will output a lot of lines because of some windows services and dhcp.
+
+In a new cmd (admin right):
+
+```dos
+# Replace with your device name
+netsh interface ip set address name="Ehternet 2" source=static addr=10.1.0.10 mask=255.255.255.0 gateway=none
+```
+
+The `main.go` terminal should be silenced after IP assignment, try sending some ICMP broadcast message:
+
+```dos
+ping 10.1.0.255
+```
+
+You'll see output containing the IPv4 ICMP frame same as the Linux version.
 
 ## TODO
 * tuntaposx for TAP on Darwin
