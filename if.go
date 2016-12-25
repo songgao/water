@@ -52,6 +52,7 @@ func New(config Config) (ifce *Interface, err error) {
 // NewTAP creates a new TAP interface whose name is ifName. If ifName is empty, a
 // default name (tap0, tap1, ... ) will be assigned. ifName should not exceed
 // 16 bytes. TAP interfaces are not supported on darwin.
+// ifName cannot be specified on windows, you will need ifce.Name() to use some cmds.
 //
 // Note: this function is deprecated and will be removed from the library.
 // Please use New() instead.
@@ -61,6 +62,7 @@ func NewTAP(ifName string) (ifce *Interface, err error) {
 
 // NewTUN creates a new TUN interface whose name is ifName. If ifName is empty, a
 // default name (tap0, tap1, ... ) will be assigned. ifName should not exceed
+// ifName cannot be specified on windows, you will need ifce.Name() to use some cmds.
 //
 // Note: this function is deprecated and will be removed from the library.
 // Please use New() instead.
