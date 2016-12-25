@@ -18,8 +18,8 @@ import (
 
 var (
 	IfceNameNotFound  = errors.New("Failed to find the name of interface.")
-	TapDeviceNotFound = errors.New("Failed to find the tap device with specified ComponentId in registry, TAP driver may not installed.")
-	RegistryOpenErr   = errors.New("Failed to open the adapter registry, TAP driver may not installed.")
+	TapDeviceNotFound = errors.New("Failed to find the tap device in registry with specified ComponentId, TAP driver may be not installed.")
+	RegistryOpenErr   = errors.New("Failed to open the adapter registry, TAP driver may be not installed.")
 	// Device Control Codes
 	tap_win_ioctl_get_mac             = tap_control_code(1, 0)
 	tap_win_ioctl_get_version         = tap_control_code(2, 0)
