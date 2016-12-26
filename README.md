@@ -182,18 +182,19 @@ func main() {
 }
 ```
 
-Same as Linux version, but you don't need to bring up the device by hand, the only thing you need is to assign an IP address to it. You will need admin right to assign IP.
+Same as Linux version, but you don't need to bring up the device by hand, the only thing you need is to assign an IP address to it.
 
 ```dos
 go run main.go
 ```
 
-If will output a lot of lines because of some windows services and dhcp.
+It will output a lot of lines because of some windows services and dhcp.
+You will need admin right to assign IP.
 
 In a new cmd (admin right):
 
 ```dos
-# Replace with your device name
+# Replace with your device name, it can be achieved by ifce.Name().
 netsh interface ip set address name="Ehternet 2" source=static addr=10.1.0.10 mask=255.255.255.0 gateway=none
 ```
 
