@@ -115,15 +115,6 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 	var bytesReturned uint32
 	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
 
-	//TUN
-	if !isTAP {
-		code2 := []byte{0x0a, 0x03, 0x00, 0x01, 0x0a, 0x03, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00}
-		err = syscall.DeviceIoControl(file, tap_ioctl_config_tun, &code2[0], uint32(12), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
-		if err != nil {
-			return
-		}
-	}
-
 	// find the mac address of tap device, use this to find the name of interface
 	mac := make([]byte, 6)
 	err = syscall.DeviceIoControl(file, tap_win_ioctl_get_mac, &mac[0], uint32(len(mac)), &mac[0], uint32(len(mac)), &bytesReturned, nil)
@@ -140,6 +131,16 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 	if err != nil {
 		return
 	}
+
+	//TUN
+	if !isTAP {
+		code2 := []byte{0x0a, 0x03, 0x00, 0x01, 0x0a, 0x03, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00}
+		err = syscall.DeviceIoControl(file, tap_ioctl_config_tun, &code2[0], uint32(12), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+		if err != nil {
+			return
+		}
+	}
+
 	// find the name of tap interface(u need it to set the ip or other command)
 	ifces, err := net.Interfaces()
 	if err != nil {
