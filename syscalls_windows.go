@@ -9,6 +9,7 @@ package water
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"syscall"
@@ -17,9 +18,7 @@ import (
 )
 
 var (
-	IfceNameNotFound  = errors.New("Failed to find the name of interface.")
-	TapDeviceNotFound = errors.New("Failed to find the tap device in registry with specified ComponentId, TAP driver may be not installed.")
-	RegistryOpenErr   = errors.New("Failed to open the adapter registry, TAP driver may be not installed.")
+	ifceNameNotFound = errors.New("Failed to find the name of interface.")
 	// Device Control Codes
 	tap_win_ioctl_get_mac             = tap_control_code(1, 0)
 	tap_win_ioctl_get_version         = tap_control_code(2, 0)
@@ -52,7 +51,7 @@ func getdeviceid() (string, error) {
 	regkey := `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regkey, registry.READ)
 	if err != nil {
-		return "", RegistryOpenErr
+		return "", fmt.Errorf("Failed to open the adapter registry, TAP driver may be not installed, %v", err)
 	}
 	defer k.Close()
 	// read all subkeys, it should not return an err here
@@ -82,7 +81,7 @@ func getdeviceid() (string, error) {
 		}
 		key.Close()
 	}
-	return "", TapDeviceNotFound
+	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId(%s), TAP driver may be not installed.", componentId)
 }
 
 // openDev find and open an interface.
@@ -154,7 +153,7 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 		}
 	}
 
-	err = IfceNameNotFound
+	err = ifceNameNotFound
 	return
 }
 
