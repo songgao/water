@@ -33,9 +33,6 @@ var (
 	tap_ioctl_config_tun              = tap_control_code(10, 0)
 	// w32 api
 	file_device_unknown = uint32(0x00000022)
-	// Driver maker specified ComponentId
-	// ComponentId is defined here: https://github.com/OpenVPN/tap-windows6/blob/master/version.m4#L5
-	componentId = "tap0901"
 	nCreateEvent,
 	nResetEvent,
 	nGetOverlappedResult uintptr
@@ -143,7 +140,7 @@ func tap_control_code(request, method uint32) uint32 {
 }
 
 // getdeviceid finds out a TAP device from registry, it *may* requires privileged right to prevent some weird issue.
-func getdeviceid() (string, error) {
+func getdeviceid(componentID string) (deviceid string, err error) {
 	// TAP driver key location
 	regkey := `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regkey, registry.READ)
@@ -167,7 +164,7 @@ func getdeviceid() (string, error) {
 			key.Close()
 			continue
 		}
-		if val == componentId {
+		if val == componentID {
 			val, _, err = key.GetStringValue("NetCfgInstanceId")
 			if err != nil {
 				key.Close()
@@ -178,14 +175,49 @@ func getdeviceid() (string, error) {
 		}
 		key.Close()
 	}
-	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId(%s), TAP driver may be not installed", componentId)
+	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId(%s), TAP driver may be not installed", componentID)
+}
+
+// setStatus is used to bring up or bring down the interface
+func setStatus(fd syscall.Handle, status bool) error {
+	var bytesReturned uint32
+	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+	code := []byte{0x00, 0x00, 0x00, 0x00}
+	if status {
+		code[0] = 0x01
+	}
+	return syscall.DeviceIoControl(fd, tap_ioctl_set_media_status, &code[0], uint32(4), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+}
+
+// setTUN is used to configure the IP address in the underlying driver when using TUN
+func setTUN(fd syscall.Handle, network string) error {
+	var bytesReturned uint32
+	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+
+	localIP, remoteNet, err := net.ParseCIDR(network)
+	if err != nil {
+		return fmt.Errorf("Failed to parse network CIDR in config, %v", err)
+	}
+	if localIP.To4() == nil {
+		return fmt.Errorf("Provided network(%s) is not a valid IPv4 address", network)
+	}
+	code2 := make([]byte, 0, 12)
+	code2 = append(code2, localIP.To4()[:4]...)
+	code2 = append(code2, remoteNet.IP.To4()[:4]...)
+	code2 = append(code2, remoteNet.Mask[:4]...)
+	if len(code2) != 12 {
+		return fmt.Errorf("Provided network(%s) is not valid", network)
+	}
+	if err := syscall.DeviceIoControl(fd, tap_ioctl_config_tun, &code2[0], uint32(12), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil); err != nil {
+		return err
+	}
+	return nil
 }
 
 // openDev find and open an interface.
-func openDev(isTAP bool) (ifce *Interface, err error) {
-	// ifName won't work
+func openDev(config Config) (ifce *Interface, err error) {
 	// find the device in registry.
-	deviceid, err := getdeviceid()
+	deviceid, err := getdeviceid(config.PlatformSpecificParams.ComponentID)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +241,6 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 		return nil, err
 	}
 	var bytesReturned uint32
-	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
 
 	// find the mac address of tap device, use this to find the name of interface
 	mac := make([]byte, 6)
@@ -228,21 +259,17 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 		return
 	}
 	fd := &wfile{fd: file, ro: ro, wo: wo}
-	ifce = &Interface{isTAP: isTAP, ReadWriteCloser: fd}
+	ifce = &Interface{isTAP: (config.DeviceType == TAP), ReadWriteCloser: fd}
 
 	// bring up device.
-	code := []byte{0x01, 0x00, 0x00, 0x00}
-	err = syscall.DeviceIoControl(file, tap_ioctl_set_media_status, &code[0], uint32(4), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
-	if err != nil {
-		return
+	if err := setStatus(file, true); err != nil {
+		return nil, err
 	}
 
 	//TUN
-	if !isTAP {
-		code2 := []byte{0x0a, 0x03, 0x00, 0x01, 0x0a, 0x03, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00}
-		err = syscall.DeviceIoControl(file, tap_ioctl_config_tun, &code2[0], uint32(12), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
-		if err != nil {
-			return
+	if config.DeviceType == TUN {
+		if err := setTUN(file, config.PlatformSpecificParams.Network); err != nil {
+			return nil, err
 		}
 	}
 
@@ -259,16 +286,17 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 		}
 	}
 
-	err = errIfceNameNotFound
-	return
+	return nil, errIfceNameNotFound
 }
 
 func newTAP(ifName string) (ifce *Interface, err error) {
-	// ifName won't work
-	return openDev(true)
+	config := defaultConfig()
+	config.DeviceType = TAP
+	return openDev(config)
 }
 
 func newTUN(ifName string) (ifce *Interface, err error) {
-	// ifName won't work
-	return openDev(false)
+	config := defaultConfig()
+	config.DeviceType = TUN
+	return openDev(config)
 }
