@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	ifceNameNotFound = errors.New("Failed to find the name of interface.")
+	errIfceNameNotFound = errors.New("Failed to find the name of interface")
 	// Device Control Codes
 	tap_win_ioctl_get_mac             = tap_control_code(1, 0)
 	tap_win_ioctl_get_version         = tap_control_code(2, 0)
@@ -178,7 +178,7 @@ func getdeviceid() (string, error) {
 		}
 		key.Close()
 	}
-	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId(%s), TAP driver may be not installed.", componentId)
+	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId(%s), TAP driver may be not installed", componentId)
 }
 
 // openDev find and open an interface.
@@ -259,7 +259,7 @@ func openDev(isTAP bool) (ifce *Interface, err error) {
 		}
 	}
 
-	err = ifceNameNotFound
+	err = errIfceNameNotFound
 	return
 }
 
