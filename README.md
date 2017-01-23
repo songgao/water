@@ -15,7 +15,7 @@ See https://github.com/songgao/packets for functions for parsing various packets
 ## Supported Platforms
 
 * Linux
-* Windows
+* Windows (experimental; APIs might change)
 * macOS (point-to-point TUN only)
 
 ## Installation
@@ -42,7 +42,12 @@ import (
 )
 
 func main() {
-	ifce, err := water.NewTAP("O_O")
+	config := water.Config{
+		DeviceType: water.TAP,
+	}
+	config.Name = "O_O"
+
+	ifce, err := water.New(config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,7 +106,9 @@ import (
 )
 
 func main() {
-	ifce, err := water.NewTUN("")
+	ifce, err := water.New(water.Config{
+		DeviceType: water.TUN,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,7 +168,9 @@ import (
 )
 
 func main() {
-	ifce, err := water.NewTAP("O_O")
+	ifce, err := water.New(water.Config{
+		DeviceType: water.TAP,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
