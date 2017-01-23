@@ -2,7 +2,6 @@ package water
 
 import (
 	"net"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -22,12 +21,6 @@ func startRead(ch chan<- []byte, ifce *Interface) {
 			}
 		}
 	}()
-}
-
-func startBroadcast(t *testing.T, dst net.IP) {
-	if err := exec.Command("ping", "-b", "-c", "2", dst.String()).Start(); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestBroadcast(t *testing.T) {
