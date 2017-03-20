@@ -5,9 +5,7 @@ package water
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -114,66 +112,10 @@ func newTUN(string) (ifce *Interface, err error) {
 	}
 
 	return &Interface{
-		isTAP: false,
-		name:  string(ifName.name[:ifNameSize-1 /* -1 is for \0 */]),
-		ReadWriteCloser: &tunReadCloser{
-			f: os.NewFile(uintptr(fd), string(ifName.name[:])),
-		},
+		isTAP:           false,
+		name:            string(ifName.name[:ifNameSize-1 /* -1 is for \0 */]),
+		ReadWriteCloser: os.NewFile(uintptr(fd), string(ifName.name[:])),
 	}, nil
-}
-
-// tunReadCloser is a hack to work around the first 4 bytes "packet
-// information" because there doesn't seem to be an IFF_NO_PI for darwin.
-type tunReadCloser struct {
-	f io.ReadWriteCloser
-
-	rMu  sync.Mutex
-	rBuf []byte
-
-	wMu  sync.Mutex
-	wBuf []byte
-}
-
-var _ io.ReadWriteCloser = (*tunReadCloser)(nil)
-
-func (t *tunReadCloser) Read(to []byte) (int, error) {
-	t.rMu.Lock()
-	defer t.rMu.Unlock()
-
-	if cap(t.rBuf) < len(to)+4 {
-		t.rBuf = make([]byte, len(to)+4)
-	}
-	t.rBuf = t.rBuf[:len(to)+4]
-
-	n, err := t.f.Read(t.rBuf)
-	copy(to, t.rBuf[4:])
-	return n - 4, err
-}
-
-func (t *tunReadCloser) Write(from []byte) (int, error) {
-	t.wMu.Lock()
-	defer t.wMu.Unlock()
-
-	if cap(t.wBuf) < len(from)+4 {
-		t.wBuf = make([]byte, len(from)+4)
-	}
-	t.wBuf = t.wBuf[:len(from)+4]
-
-	t.wBuf[0] = 2 // Family: IP (2)
-	copy(t.wBuf[4:], from)
-
-	n, err := t.f.Write(t.wBuf)
-	return n - 4, err
-}
-
-func (t *tunReadCloser) Close() error {
-	// lock to make sure no read/write is in process.
-	t.rMu.Lock()
-	defer t.rMu.Unlock()
-	t.wMu.Lock()
-	defer t.wMu.Unlock()
-
-	return t.f.Close()
 }
 
 func newTAP(ifName string) (ifce *Interface, err error) {
