@@ -159,7 +159,7 @@ func (t *tunReadCloser) Write(from []byte) (int, error) {
 	}
 	t.wBuf = t.wBuf[:len(from)+4]
 
-	t.wBuf[0] = 2 // Family: IP (2)
+	t.wBuf[3] = 2 // Family: IP (2)
 	copy(t.wBuf[4:], from)
 
 	n, err := t.f.Write(t.wBuf)
