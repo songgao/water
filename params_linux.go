@@ -16,11 +16,13 @@ type PlatformSpecificParams struct {
 	Persist bool
 
 	// ID of the user which will be granted ownership of the device.
-	// The default value of -1 specifies that any user may use the device.
+	// If set to a negative value, the owner value will not be changed.
+	// By default, Linux sets the owner to -1, which allows any user.
 	Owner int
 
 	// ID of the group which will be granted access to the device.
-	// The default value of -1 specifies that any group may use the device.
+	// If set to a negative value, the group value will not be changed.
+	// By default, Linux sets the group to -1, which allows any group.
 	Group int
 }
 
