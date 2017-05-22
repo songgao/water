@@ -1,6 +1,8 @@
 package water
 
-import "io"
+import (
+	"io"
+)
 
 // Interface is a TUN/TAP interface.
 type Interface struct {
@@ -47,28 +49,6 @@ func New(config Config) (ifce *Interface, err error) {
 		config = defaultConfig()
 	}
 	return newDev(config)
-}
-
-// NewTAP creates a new TAP interface whose name is ifName. If ifName is empty, a
-// default name (tap0, tap1, ... ) will be assigned. ifName should not exceed
-// 16 bytes. TAP interfaces are not supported on darwin.
-// ifName cannot be specified on windows, you will need ifce.Name() to use some cmds.
-//
-// Note: this function is deprecated and will be removed from the library.
-// Please use New() instead.
-func NewTAP(ifName string) (ifce *Interface, err error) {
-	return newTAP(ifName)
-}
-
-// NewTUN creates a new TUN interface whose name is ifName. If ifName is empty, a
-// default name (tap0, tap1, ... ) will be assigned. ifName should not exceed
-// ifName cannot be specified on windows, you will need ifce.Name() to use some cmds.
-//
-// Note: this function is deprecated and will be removed from the library.
-// Please use New() instead.
-// 16 bytes. Setting interface name is NOT supported on darwin.
-func NewTUN(ifName string) (ifce *Interface, err error) {
-	return newTUN(ifName)
 }
 
 // IsTUN returns true if ifce is a TUN interface.
