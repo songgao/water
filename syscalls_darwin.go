@@ -151,6 +151,11 @@ func (t *tunReadCloser) Read(to []byte) (int, error) {
 }
 
 func (t *tunReadCloser) Write(from []byte) (int, error) {
+
+	if len(from) == 0 {
+		return 0, syscall.EIO
+	}
+
 	t.wMu.Lock()
 	defer t.wMu.Unlock()
 
