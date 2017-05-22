@@ -289,14 +289,10 @@ func openDev(config Config) (ifce *Interface, err error) {
 	return nil, errIfceNameNotFound
 }
 
-func newTAP(ifName string) (ifce *Interface, err error) {
-	config := defaultConfig()
-	config.DeviceType = TAP
+func newTAP(config Config) (ifce *Interface, err error) {
 	return openDev(config)
 }
 
-func newTUN(ifName string) (ifce *Interface, err error) {
-	config := defaultConfig()
-	config.DeviceType = TUN
+func newTUN(config Config) (ifce *Interface, err error) {
 	return openDev(config)
 }

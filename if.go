@@ -2,6 +2,7 @@ package water
 
 import (
 	"io"
+	"errors"
 )
 
 // Interface is a TUN/TAP interface.
@@ -48,7 +49,14 @@ func New(config Config) (ifce *Interface, err error) {
 	if zeroConfig == config {
 		config = defaultConfig()
 	}
-	return newDev(config)
+	switch config.DeviceType {
+	case TUN:
+		return newTUN(config)
+	case TAP:
+		return newTAP(config)
+	default:
+		return nil, errors.New("unknown device type")
+	}
 }
 
 // IsTUN returns true if ifce is a TUN interface.
@@ -65,3 +73,5 @@ func (ifce *Interface) IsTAP() bool {
 func (ifce *Interface) Name() string {
 	return ifce.name
 }
+
+

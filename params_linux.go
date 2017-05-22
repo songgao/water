@@ -1,9 +1,8 @@
-// +build linux darwin
 
 package water
 
 // PlatformSpecificParams defines parameters in Config that are specific to
-// Linux and macOS. A zero-value of such type is valid, yielding an interface
+// Linux. A zero-value of such type is valid, yielding an interface
 // with OS defined name.
 type PlatformSpecificParams struct {
 	// Name is the name to be set for the interface to be created. This overrides

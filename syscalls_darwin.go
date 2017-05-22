@@ -61,7 +61,7 @@ type sockaddrCtl struct {
 
 var sockaddrCtlSize uintptr = 32
 
-func newTUN(string) (ifce *Interface, err error) {
+func newTUN(config Config) (ifce *Interface, err error) {
 	var fd int
 	// Supposed to be socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL), but ...
 	//
@@ -120,6 +120,10 @@ func newTUN(string) (ifce *Interface, err error) {
 			f: os.NewFile(uintptr(fd), string(ifName.name[:])),
 		},
 	}, nil
+}
+
+func newTAP(config Config) (ifce *Interface, err error) {
+	return nil, errors.New("tap interface not implemented on this platform")
 }
 
 // tunReadCloser is a hack to work around the first 4 bytes "packet
@@ -188,8 +192,4 @@ func (t *tunReadCloser) Close() error {
 	defer t.wMu.Unlock()
 
 	return t.f.Close()
-}
-
-func newTAP(ifName string) (ifce *Interface, err error) {
-	return nil, errors.New("tap interface not implemented on this platform")
 }

@@ -4,10 +4,10 @@ package water
 
 import "errors"
 
-func newTAP(ifName string) (ifce *Interface, err error) {
+func newTAP(config Config) (ifce *Interface, err error) {
 	return nil, errors.New("tap interface not implemented on this platform")
 }
 
-func newTUN(ifName string) (ifce *Interface, err error) {
+func newTUN(config Config) (ifce *Interface, err error) {
 	return nil, errors.New("tap interface not implemented on this platform")
 }

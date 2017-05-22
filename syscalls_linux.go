@@ -21,12 +21,12 @@ type ifReq struct {
 	pad   [0x28 - 0x10 - 2]byte
 }
 
-func newTAP(ifName string) (ifce *Interface, err error) {
+func newTAP(config Config) (ifce *Interface, err error) {
 	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
-	name, err := createInterface(file.Fd(), ifName, cIFF_TAP|cIFF_NO_PI)
+	name, err := createInterface(file.Fd(), config.Name, cIFF_TAP|cIFF_NO_PI)
 	if err != nil {
 		return nil, err
 	}
@@ -34,12 +34,12 @@ func newTAP(ifName string) (ifce *Interface, err error) {
 	return
 }
 
-func newTUN(ifName string) (ifce *Interface, err error) {
+func newTUN(config Config) (ifce *Interface, err error) {
 	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
-	name, err := createInterface(file.Fd(), ifName, cIFF_TUN|cIFF_NO_PI)
+	name, err := createInterface(file.Fd(), config.Name, cIFF_TUN|cIFF_NO_PI)
 	if err != nil {
 		return nil, err
 	}
