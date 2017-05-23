@@ -39,23 +39,8 @@ func newTAP(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	// Set Device Owner
-	if config.Owner >= 0 {
-		if err = ioctl(file.Fd(), syscall.TUNSETOWNER, uintptr(config.Owner)); err != nil {
-			return
-		}
-	}
-
-	// Set Device Group
-	if config.Group >= 0 {
-		if err = ioctl(file.Fd(), syscall.TUNSETGROUP, uintptr(config.Group)); err != nil {
-			return
-		}
-	}
-
-	// Set/Clear Persist Device Flag
-	if err = setPersistence(file.Fd(), config.Persist); err != nil {
-		return
+	if err = setDeviceOptions(file.Fd(), config); err != nil {
+		return nil, err
 	}
 
 	ifce = &Interface{isTAP: true, ReadWriteCloser: file, name: name}
@@ -72,23 +57,8 @@ func newTUN(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	// Set Device Owner
-	if config.Owner >= 0 {
-		if err = ioctl(file.Fd(), syscall.TUNSETOWNER, uintptr(config.Owner)); err != nil {
-			return
-		}
-	}
-
-	// Set Device Group
-	if config.Group >= 0 {
-		if err = ioctl(file.Fd(), syscall.TUNSETGROUP, uintptr(config.Group)); err != nil {
-			return
-		}
-	}
-
-	// Set/Clear Persist Device Flag
-	if err = setPersistence(file.Fd(), config.Persist); err != nil {
-		return
+	if err = setDeviceOptions(file.Fd(), config); err != nil {
+		return nil, err
 	}
 
 	ifce = &Interface{isTAP: false, ReadWriteCloser: file, name: name}
@@ -109,10 +79,27 @@ func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName str
 	return
 }
 
-func setPersistence(fd uintptr, enabled bool) error {
+func setDeviceOptions(fd uintptr, config Config) (err error) {
+
+	// Set Device Owner
+	if config.Owner >= 0 {
+		if err = ioctl(fd, syscall.TUNSETOWNER, uintptr(config.Owner)); err != nil {
+			return
+		}
+	}
+
+	// Set Device Group
+	if config.Group >= 0 {
+		if err = ioctl(fd, syscall.TUNSETGROUP, uintptr(config.Group)); err != nil {
+			return
+		}
+	}
+
+	// Set/Clear Persist Device Flag
 	value := 0
-	if enabled {
+	if config.Persist {
 		value = 1
 	}
 	return ioctl(fd, syscall.TUNSETPERSIST, uintptr(value))
+
 }
