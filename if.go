@@ -1,8 +1,8 @@
 package water
 
 import (
-	"io"
 	"errors"
+	"io"
 )
 
 // Interface is a TUN/TAP interface.
@@ -73,5 +73,3 @@ func (ifce *Interface) IsTAP() bool {
 func (ifce *Interface) Name() string {
 	return ifce.name
 }
-
-

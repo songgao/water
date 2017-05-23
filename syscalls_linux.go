@@ -110,7 +110,7 @@ func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName str
 }
 
 func setPersistence(fd uintptr, enabled bool) error {
-	value := 0;
+	value := 0
 	if enabled {
 		value = 1
 	}
