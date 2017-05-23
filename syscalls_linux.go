@@ -81,16 +81,16 @@ func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName str
 
 func setDeviceOptions(fd uintptr, config Config) (err error) {
 
-	// Set Device Owner
-	if config.Owner >= 0 {
-		if err = ioctl(fd, syscall.TUNSETOWNER, uintptr(config.Owner)); err != nil {
+	// Device Permissions
+	if config.Permissions != nil {
+
+		// Set Owner
+		if err = ioctl(fd, syscall.TUNSETOWNER, uintptr(config.Permissions.Owner)); err != nil {
 			return
 		}
-	}
 
-	// Set Device Group
-	if config.Group >= 0 {
-		if err = ioctl(fd, syscall.TUNSETGROUP, uintptr(config.Group)); err != nil {
+		// Set Group
+		if err = ioctl(fd, syscall.TUNSETGROUP, uintptr(config.Permissions.Group)); err != nil {
 			return
 		}
 	}
