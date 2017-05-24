@@ -151,6 +151,11 @@ You'd see the ICMP packets printed out:
 2017/03/20 21:17:40 Packet Received: 45 00 00 54 e9 1d 00 00 40 01 7d 6c 0a 01 00 0a 0a 01 00 14 08 00 ee 04 21 15 00 00 58 d0 a9 64 00 08 fb a5 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20 21 22 23 24 25 26 27 28 29 2a 2b 2c 2d 2e 2f 30 31 32 33 34 35 36 37
 ```
 
+#### Caveats
+
+1. Only Point-to-Point user TUN devices are supported. TAP devices are *not* supported natively by macOS.
+2. Custom interface names are not supported by macOS. Interface names are automatically generated serially, using the `utun<#>` naming convention.
+
 ### TAP on Windows:
 
 To use it with windows, you will need to install a [tap driver](https://github.com/OpenVPN/tap-windows6), or [OpenVPN client](https://github.com/OpenVPN/openvpn) for windows.

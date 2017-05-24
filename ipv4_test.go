@@ -30,7 +30,7 @@ func TestBroadcast(t *testing.T) {
 		brd  = net.IPv4(10, 0, 42, 255)
 	)
 
-	ifce, err := NewTAP("test")
+	ifce, err := New(Config{DeviceType: TAP})
 	if err != nil {
 		t.Fatalf("creating TAP error: %v\n", err)
 	}
