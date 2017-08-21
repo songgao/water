@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	cIFF_TUN   = 0x0001
-	cIFF_TAP   = 0x0002
-	cIFF_NO_PI = 0x1000
+	cIFF_TUN         = 0x0001
+	cIFF_TAP         = 0x0002
+	cIFF_NO_PI       = 0x1000
+	cIFF_MULTI_QUEUE = 0x0100
 )
 
 type ifReq struct {
@@ -34,7 +35,13 @@ func newTAP(config Config) (ifce *Interface, err error) {
 	if err != nil {
 		return nil, err
 	}
-	name, err := createInterface(file.Fd(), config.Name, cIFF_TAP|cIFF_NO_PI)
+
+	var flags uint16
+	flags = cIFF_TUN | cIFF_NO_PI
+	if config.PlatformSpecificParams.MultiQueue {
+		flags = cIFF_TUN | cIFF_NO_PI | cIFF_MULTI_QUEUE
+	}
+	name, err := createInterface(file.Fd(), config.Name, flags)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +59,13 @@ func newTUN(config Config) (ifce *Interface, err error) {
 	if err != nil {
 		return nil, err
 	}
-	name, err := createInterface(file.Fd(), config.Name, cIFF_TUN|cIFF_NO_PI)
+
+	var flags uint16
+	flags = cIFF_TUN | cIFF_NO_PI
+	if config.PlatformSpecificParams.MultiQueue {
+		flags = cIFF_TUN | cIFF_NO_PI | cIFF_MULTI_QUEUE
+	}
+	name, err := createInterface(file.Fd(), config.Name, flags)
 	if err != nil {
 		return nil, err
 	}
