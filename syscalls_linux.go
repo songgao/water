@@ -39,7 +39,7 @@ func newTAP(config Config) (ifce *Interface, err error) {
 	var flags uint16
 	flags = cIFF_TUN | cIFF_NO_PI
 	if config.PlatformSpecificParams.MultiQueue {
-		flags = cIFF_TUN | cIFF_NO_PI | cIFF_MULTI_QUEUE
+		flags |= cIFF_MULTI_QUEUE
 	}
 	name, err := createInterface(file.Fd(), config.Name, flags)
 	if err != nil {
@@ -63,7 +63,7 @@ func newTUN(config Config) (ifce *Interface, err error) {
 	var flags uint16
 	flags = cIFF_TUN | cIFF_NO_PI
 	if config.PlatformSpecificParams.MultiQueue {
-		flags = cIFF_TUN | cIFF_NO_PI | cIFF_MULTI_QUEUE
+		flags |= cIFF_MULTI_QUEUE
 	}
 	name, err := createInterface(file.Fd(), config.Name, flags)
 	if err != nil {
