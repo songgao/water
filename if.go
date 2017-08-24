@@ -6,6 +6,10 @@ import (
 )
 
 // Interface is a TUN/TAP interface.
+//
+// MultiQueue(Linux kernel > 3.8): With MultiQueue enabled, user should hold multiple
+// interfaces to send/receive packet in parallel.
+// Kernel document about MultiQueue: https://www.kernel.org/doc/Documentation/networking/tuntap.txt
 type Interface struct {
 	isTAP bool
 	io.ReadWriteCloser

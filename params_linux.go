@@ -31,6 +31,11 @@ type PlatformSpecificParams struct {
 	// A zero-value of this field, i.e. nil, indicates that no changes to owner
 	// or group will be made.
 	Permissions *DevicePermissions
+
+	// Support multiqueue tun/tap interface.
+	// From version 3.8, Linux supports multiqueue tuntap which can uses multiple
+	// file descriptors (queues) to parallelize packets sending or receiving.
+	MultiQueue bool
 }
 
 func defaultPlatformSpecificParams() PlatformSpecificParams {
