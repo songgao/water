@@ -22,7 +22,7 @@ type ifReq struct {
 	pad   [0x28 - 0x10 - 2]byte
 }
 
-func ioctl(fd uintptr, request uint, argp uintptr) error {
+func ioctl(fd uintptr, request uintptr, argp uintptr) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(request), argp)
 	if errno != 0 {
 		return os.NewSyscallError("ioctl", errno)
