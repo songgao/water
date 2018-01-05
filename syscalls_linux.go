@@ -31,7 +31,14 @@ func ioctl(fd uintptr, request uintptr, argp uintptr) error {
 }
 
 func newTAP(config Config) (ifce *Interface, err error) {
-	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	var file *os.File
+
+	// Android devices doesn't have /dev/net folder.
+	if _, err = os.Stat("/dev/tun"); err != nil {
+		file, err = os.OpenFile("/dev/tun", os.O_RDWR, 0)
+	} else {
+		file, err = os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +62,13 @@ func newTAP(config Config) (ifce *Interface, err error) {
 }
 
 func newTUN(config Config) (ifce *Interface, err error) {
-	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	var file *os.File
+
+	if _, err = os.Stat("/dev/tun"); err != nil {
+		file, err = os.OpenFile("/dev/tun", os.O_RDWR, 0)
+	} else {
+		file, err = os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +106,6 @@ func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName str
 }
 
 func setDeviceOptions(fd uintptr, config Config) (err error) {
-
 	// Device Permissions
 	if config.Permissions != nil {
 
