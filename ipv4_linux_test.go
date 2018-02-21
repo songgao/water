@@ -1,4 +1,5 @@
-// +build linux,darwin
+// +build linux darwin
+
 package water
 
 import (
