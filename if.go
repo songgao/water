@@ -14,6 +14,7 @@ type Interface struct {
 	isTAP bool
 	io.ReadWriteCloser
 	name string
+	Fd int
 }
 
 // DeviceType is the type for specifying device types.

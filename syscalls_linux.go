@@ -51,6 +51,7 @@ func newTAP(config Config) (ifce *Interface, err error) {
 	}
 
 	ifce = &Interface{isTAP: true, ReadWriteCloser: file, name: name}
+	ifce.Fd = int(file.Fd())
 	return
 }
 
@@ -75,6 +76,7 @@ func newTUN(config Config) (ifce *Interface, err error) {
 	}
 
 	ifce = &Interface{isTAP: false, ReadWriteCloser: file, name: name}
+	ifce.Fd = int(file.Fd())
 	return
 }
 
