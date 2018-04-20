@@ -175,7 +175,7 @@ func (t *tunReadCloser) Write(from []byte) (int, error) {
 	} else if ipVer == 6 {
 		t.wBuf[3] = syscall.AF_INET6
 	} else {
-		return 0, errors.New("Unable to determine IP version from packet.")
+		return 0, errors.New("Unable to determine IP version from packet")
 	}
 
 	copy(t.wBuf[4:], from)

@@ -53,6 +53,9 @@ func New(config Config) (ifce *Interface, err error) {
 	if zeroConfig == config {
 		config = defaultConfig()
 	}
+	if config.PlatformSpecificParams == zeroConfig.PlatformSpecificParams {
+		config.PlatformSpecificParams = defaultPlatformSpecificParams()
+	}
 	switch config.DeviceType {
 	case TUN:
 		return newTUN(config)
