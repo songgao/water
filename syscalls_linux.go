@@ -56,7 +56,7 @@ func newTAP(config Config) (ifce *Interface, err error) {
 }
 
 func newTUN(config Config) (ifce *Interface, err error) {
-	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	fd, err := syscall.Open("/dev/net/tun", syscall.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -66,17 +66,16 @@ func newTUN(config Config) (ifce *Interface, err error) {
 	if config.PlatformSpecificParams.MultiQueue {
 		flags |= cIFF_MULTI_QUEUE
 	}
-	name, err := createInterface(file.Fd(), config.Name, flags)
+	name, err := createInterface(uintptr(fd), config.Name, flags)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = setDeviceOptions(file.Fd(), config); err != nil {
+	if err = setDeviceOptions(uintptr(fd), config); err != nil {
 		return nil, err
 	}
 
-	ifce = &Interface{isTAP: false, ReadWriteCloser: file, name: name}
-	ifce.Fd = int(file.Fd())
+	ifce = &Interface{isTAP: false, ReadWriteCloser: nil, name: name, Fd: fd}
 	return
 }
 
