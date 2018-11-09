@@ -31,7 +31,7 @@ func ioctl(fd uintptr, request uintptr, argp uintptr) error {
 }
 
 func newTAP(config Config) (ifce *Interface, err error) {
-	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	file, err := openTun()
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func newTAP(config Config) (ifce *Interface, err error) {
 }
 
 func newTUN(config Config) (ifce *Interface, err error) {
-	file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+	file, err := openTun()
 	if err != nil {
 		return nil, err
 	}
@@ -107,5 +107,16 @@ func setDeviceOptions(fd uintptr, config Config) (err error) {
 	if config.Persist {
 		value = 1
 	}
+
 	return ioctl(fd, syscall.TUNSETPERSIST, uintptr(value))
+}
+
+func openTun() (*os.File, error) {
+	tunFile := "/dev/net/tun"
+	bfile, err := os.OpenFile(tunFile, os.O_RDWR, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.NewFile(bfile.Fd(), tunFile), nil
 }

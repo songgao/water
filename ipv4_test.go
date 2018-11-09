@@ -1,6 +1,7 @@
 package water
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -72,5 +73,38 @@ readFrame:
 		case <-timeout:
 			t.Fatal("Waiting for broadcast packet timeout")
 		}
+	}
+}
+
+func TestCloseUnblockPendingRead(t *testing.T) {
+	var (
+		self = net.IPv4(192, 168, 150, 1)
+		mask = net.IPv4Mask(255, 255, 255, 0)
+	)
+
+	ifce, err := New(Config{DeviceType: TUN})
+	if err != nil {
+		t.Fatalf("creating TUN error: %v\n", err)
+	}
+
+	setupIfce(t, net.IPNet{IP: self, Mask: mask}, ifce.Name())
+	c := make(chan struct{})
+	go func() {
+		ifce.Read(make([]byte, 1<<16))
+		close(c)
+	}()
+
+	// make sure ifce.Close() happens after ifce.Read()
+	time.Sleep(1 * time.Second)
+
+	ifce.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	select {
+	case <-c:
+		t.Log("Pending Read unblocked")
+	case <-ctx.Done():
+		t.Fatal("Timeouted, pending read blocked")
 	}
 }
