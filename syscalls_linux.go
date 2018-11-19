@@ -114,16 +114,18 @@ func setDeviceOptions(fd uintptr, config Config) (err error) {
 		value = 1
 	}
 
+	if config.NonBlocking {
+		if err = syscall.SetNonblock(int(fd), true); err != nil {
+			return err
+		}
+	}
+
 	return ioctl(fd, syscall.TUNSETPERSIST, uintptr(value))
 
 }
 
-func openTun() (*os.File, error) {
-	tunFile := "/dev/net/tun"
-	bfile, err := os.OpenFile(tunFile, os.O_RDWR, 0)
-	if err != nil {
-		return nil, err
-	}
+const tunFile = "/dev/net/tun"
 
-	return os.NewFile(bfile.Fd(), tunFile), nil
+func openTun() (*os.File, error) {
+	return os.OpenFile(tunFile, os.O_RDWR, 0)
 }

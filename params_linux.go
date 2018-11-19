@@ -36,6 +36,9 @@ type PlatformSpecificParams struct {
 	// From version 3.8, Linux supports multiqueue tuntap which can uses multiple
 	// file descriptors (queues) to parallelize packets sending or receiving.
 	MultiQueue bool
+
+	// Enable or disable non-blocking mode
+	NonBlocking bool
 }
 
 func defaultPlatformSpecificParams() PlatformSpecificParams {
