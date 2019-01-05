@@ -77,17 +77,11 @@ readFrame:
 }
 
 func TestCloseUnblockPendingRead(t *testing.T) {
-	var (
-		self = net.IPv4(192, 168, 150, 1)
-		mask = net.IPv4Mask(255, 255, 255, 0)
-	)
-
 	ifce, err := New(Config{DeviceType: TUN})
 	if err != nil {
 		t.Fatalf("creating TUN error: %v\n", err)
 	}
 
-	setupIfce(t, net.IPNet{IP: self, Mask: mask}, ifce.Name())
 	c := make(chan struct{})
 	go func() {
 		ifce.Read(make([]byte, 1<<16))
