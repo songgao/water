@@ -113,6 +113,10 @@ func newTUN(config Config) (ifce *Interface, err error) {
 		return nil, fmt.Errorf("error in syscall.Syscall6(syscall.SYS_GETSOCKOPT, ...): %v", err)
 	}
 
+	if err = syscall.SetNonblock(fd, true); err != nil {
+		return nil, fmt.Errorf("setting non-blocking error")
+	}
+
 	return &Interface{
 		isTAP: false,
 		name:  string(ifName.name[:ifNameSize-1 /* -1 is for \0 */]),
@@ -185,11 +189,5 @@ func (t *tunReadCloser) Write(from []byte) (int, error) {
 }
 
 func (t *tunReadCloser) Close() error {
-	// lock to make sure no read/write is in process.
-	t.rMu.Lock()
-	defer t.rMu.Unlock()
-	t.wMu.Lock()
-	defer t.wMu.Unlock()
-
 	return t.f.Close()
 }
