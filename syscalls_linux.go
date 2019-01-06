@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	cIFF_TUN         = 0x0001
-	cIFF_TAP         = 0x0002
-	cIFF_NO_PI       = 0x1000
-	cIFF_MULTI_QUEUE = 0x0100
+	cIFFTUN        = 0x0001
+	cIFFTAP        = 0x0002
+	cIFFNOPI       = 0x1000
+	cIFFMULTIQUEUE = 0x0100
 )
 
 type ifReq struct {
@@ -37,9 +37,9 @@ func newTAP(config Config) (ifce *Interface, err error) {
 	}
 
 	var flags uint16
-	flags = cIFF_TAP | cIFF_NO_PI
+	flags = cIFFTAP | cIFFNOPI
 	if config.PlatformSpecificParams.MultiQueue {
-		flags |= cIFF_MULTI_QUEUE
+		flags |= cIFFMULTIQUEUE
 	}
 	name, err := createInterface(file.Fd(), config.Name, flags)
 	if err != nil {
@@ -61,9 +61,9 @@ func newTUN(config Config) (ifce *Interface, err error) {
 	}
 
 	var flags uint16
-	flags = cIFF_TUN | cIFF_NO_PI
+	flags = cIFFTUN | cIFFNOPI
 	if config.PlatformSpecificParams.MultiQueue {
-		flags |= cIFF_MULTI_QUEUE
+		flags |= cIFFMULTIQUEUE
 	}
 	name, err := createInterface(file.Fd(), config.Name, flags)
 	if err != nil {
@@ -93,26 +93,19 @@ func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName str
 }
 
 func setDeviceOptions(fd uintptr, config Config) (err error) {
-
-	// Device Permissions
 	if config.Permissions != nil {
-
-		// Set Owner
 		if err = ioctl(fd, syscall.TUNSETOWNER, uintptr(config.Permissions.Owner)); err != nil {
 			return
 		}
-
-		// Set Group
 		if err = ioctl(fd, syscall.TUNSETGROUP, uintptr(config.Permissions.Group)); err != nil {
 			return
 		}
 	}
 
-	// Set/Clear Persist Device Flag
+	// set clear the persist flag
 	value := 0
 	if config.Persist {
 		value = 1
 	}
 	return ioctl(fd, syscall.TUNSETPERSIST, uintptr(value))
-
 }

@@ -2,15 +2,17 @@
 
 package water
 
+// DevicePermissions determines the owner and group owner for the newly created
+// interface.
 type DevicePermissions struct {
-	// ID of the user which will be granted ownership of the device.
-	// If set to a negative value, the owner value will not be changed.
-	// By default, Linux sets the owner to -1, which allows any user.
+	// Owner is the ID of the user which will be granted ownership of the
+	// device.  If set to a negative value, the owner value will not be
+	// changed.  By default, Linux sets the owner to -1, which allows any user.
 	Owner uint
 
-	// ID of the group which will be granted access to the device.
-	// If set to a negative value, the group value will not be changed.
-	// By default, Linux sets the group to -1, which allows any group.
+	// Group is the ID of the group which will be granted access to the device.
+	// If set to a negative value, the group value will not be changed.  By
+	// default, Linux sets the group to -1, which allows any group.
 	Group uint
 }
 
@@ -24,17 +26,19 @@ type PlatformSpecificParams struct {
 	// used.
 	Name string
 
-	// Enable or disable persistence mode for the interface device.
+	// Persist specifies whether persistence mode for the interface device
+	// should be enabled or disabled.
 	Persist bool
 
-	// Owner and Group permissions for the device.
-	// A zero-value of this field, i.e. nil, indicates that no changes to owner
-	// or group will be made.
+	// Permissions, if non-nil, specifies the owner and group owner for the
+	// interface.  A zero-value of this field, i.e. nil, indicates that no
+	// changes to owner or group will be made.
 	Permissions *DevicePermissions
 
-	// Support multiqueue tun/tap interface.
-	// From version 3.8, Linux supports multiqueue tuntap which can uses multiple
-	// file descriptors (queues) to parallelize packets sending or receiving.
+	// MultiQueue specifies whether the multiqueue flag should be set on the
+	// interface.  From version 3.8, Linux supports multiqueue tuntap which can
+	// uses multiple file descriptors (queues) to parallelize packets sending
+	// or receiving.
 	MultiQueue bool
 }
 
