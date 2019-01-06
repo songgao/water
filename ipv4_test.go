@@ -88,7 +88,7 @@ func TestCloseUnblockPendingRead(t *testing.T) {
 		close(c)
 	}()
 
-	// make sure ifce.Close() happens after ifce.Read()
+	// make sure ifce.Close() happens after ifce.Read() blocks
 	time.Sleep(1 * time.Second)
 
 	ifce.Close()
