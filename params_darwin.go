@@ -1,5 +1,3 @@
-// +build darwin
-
 package water
 
 // PlatformSpecificParams defines parameters in Config that are specific to

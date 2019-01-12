@@ -1,9 +1,3 @@
-// +build windows
-
-// To use it with windows, you need a tap driver installed on windows.
-// https://github.com/OpenVPN/tap-windows6
-// or just install OpenVPN
-// https://github.com/OpenVPN/openvpn
 package water
 
 import (
@@ -17,6 +11,11 @@ import (
 
 	"golang.org/x/sys/windows/registry"
 )
+
+// To use it with windows, you need a tap driver installed on windows.
+// https://github.com/OpenVPN/tap-windows6
+// or just install OpenVPN
+// https://github.com/OpenVPN/openvpn
 
 var (
 	errIfceNameNotFound = errors.New("Failed to find the name of interface")
