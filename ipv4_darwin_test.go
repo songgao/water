@@ -10,7 +10,7 @@ import (
 )
 
 func startPing(t *testing.T, dst net.IP) {
-	if err := exec.Command("ping", "-c", "2", dst.String()).Start(); err != nil {
+	if err := exec.Command("ping", "-c", "4", dst.String()).Start(); err != nil {
 		t.Fatal(err)
 	}
 }
