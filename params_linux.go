@@ -38,6 +38,9 @@ type PlatformSpecificParams struct {
 	// uses multiple file descriptors (queues) to parallelize packets sending
 	// or receiving.
 	MultiQueue bool
+
+	// Blocking specifies whether blocking mode for the interface device
+	Blocking bool
 }
 
 func defaultPlatformSpecificParams() PlatformSpecificParams {

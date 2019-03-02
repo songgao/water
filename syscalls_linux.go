@@ -29,7 +29,11 @@ func ioctl(fd uintptr, request uintptr, argp uintptr) error {
 }
 
 func newTAP(config Config) (ifce *Interface, err error) {
-	fdInt, err := syscall.Open("/dev/net/tun", os.O_RDWR|syscall.O_NONBLOCK, 0)
+	tunFlags := os.O_RDWR
+	if !config.Blocking {
+		tunFlags |= syscall.O_NONBLOCK
+	}
+	fdInt, err := syscall.Open("/dev/net/tun", tunFlags, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +58,11 @@ func newTAP(config Config) (ifce *Interface, err error) {
 }
 
 func newTUN(config Config) (ifce *Interface, err error) {
-	fdInt, err := syscall.Open("/dev/net/tun", os.O_RDWR|syscall.O_NONBLOCK, 0)
+	tunFlags := os.O_RDWR
+	if !config.Blocking {
+		tunFlags |= syscall.O_NONBLOCK
+	}
+	fdInt, err := syscall.Open("/dev/net/tun", tunFlags, 0)
 	if err != nil {
 		return nil, err
 	}
