@@ -17,6 +17,11 @@ import (
 // or just install OpenVPN
 // https://github.com/OpenVPN/openvpn
 
+const (
+	// tapDriverKey is a location of the TAP driver key.
+	tapDriverKey = `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
+)
+
 var (
 	errIfceNameNotFound = errors.New("Failed to find the name of interface")
 	// Device Control Codes
@@ -140,9 +145,7 @@ func tap_control_code(request, method uint32) uint32 {
 
 // getdeviceid finds out a TAP device from registry, it *may* requires privileged right to prevent some weird issue.
 func getdeviceid(componentID string, interfaceName string) (deviceid string, err error) {
-	// TAP driver key location
-	regkey := `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regkey, registry.READ)
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, tapDriverKey, registry.READ)
 	if err != nil {
 		return "", fmt.Errorf("Failed to open the adapter registry, TAP driver may be not installed, %v", err)
 	}
@@ -154,7 +157,7 @@ func getdeviceid(componentID string, interfaceName string) (deviceid string, err
 	}
 	// find the one matched ComponentId
 	for _, v := range keys {
-		key, err := registry.OpenKey(registry.LOCAL_MACHINE, regkey+"\\"+v, registry.READ)
+		key, err := registry.OpenKey(registry.LOCAL_MACHINE, tapDriverKey+"\\"+v, registry.READ)
 		if err != nil {
 			continue
 		}
@@ -170,19 +173,14 @@ func getdeviceid(componentID string, interfaceName string) (deviceid string, err
 				continue
 			}
 			if len(interfaceName) > 0 {
-				key2 := `SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}\`+val+`\Connection`
+				key2 := fmt.Sprintf("%s\\%s\\Connection", tapDriverKey, val)
 				k2, err := registry.OpenKey(registry.LOCAL_MACHINE, key2, registry.READ)
 				if err != nil {
-					fmt.Println("Unable to open", key2)
 					continue
 				}
 				defer k2.Close()
 				val, _, err := k2.GetStringValue("Name")
-				if err != nil {
-					fmt.Println("Unable to get Name value from", key2)
-					continue
-				}
-				if val != interfaceName {
+				if err != nil || val != interfaceName {
 					continue
 				}
 			}
@@ -192,10 +190,10 @@ func getdeviceid(componentID string, interfaceName string) (deviceid string, err
 		key.Close()
 	}
 	if len(interfaceName) > 0 {
-		return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s' and InterfaceName '%s', TAP driver may be not installed or you may have specified an interface name that doesn't exist", componentID)
-	} else {
-		return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s', TAP driver may be not installed", componentID)
+		return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s' and InterfaceName '%s', TAP driver may be not installed or you may have specified an interface name that doesn't exist", componentID, interfaceName)
 	}
+
+	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s', TAP driver may be not installed", componentID)
 }
 
 // setStatus is used to bring up or bring down the interface
