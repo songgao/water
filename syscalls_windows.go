@@ -139,7 +139,7 @@ func tap_control_code(request, method uint32) uint32 {
 }
 
 // getdeviceid finds out a TAP device from registry, it *may* requires privileged right to prevent some weird issue.
-func getdeviceid(componentID string) (deviceid string, err error) {
+func getdeviceid(componentID string, interfaceName string) (deviceid string, err error) {
 	// TAP driver key location
 	regkey := `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regkey, registry.READ)
@@ -169,12 +169,33 @@ func getdeviceid(componentID string) (deviceid string, err error) {
 				key.Close()
 				continue
 			}
+			if len(interfaceName) > 0 {
+				key2 := `SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}\`+val+`\Connection`
+				k2, err := registry.OpenKey(registry.LOCAL_MACHINE, key2, registry.READ)
+				if err != nil {
+					fmt.Println("Unable to open", key2)
+					continue
+				}
+				defer k2.Close()
+				val, _, err := k2.GetStringValue("Name")
+				if err != nil {
+					fmt.Println("Unable to get Name value from", key2)
+					continue
+				}
+				if val != interfaceName {
+					continue
+				}
+			}
 			key.Close()
 			return val, nil
 		}
 		key.Close()
 	}
-	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId(%s), TAP driver may be not installed", componentID)
+	if len(interfaceName) > 0 {
+		return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s' and InterfaceName '%s', TAP driver may be not installed or you may have specified an interface name that doesn't exist", componentID)
+	} else {
+		return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s', TAP driver may be not installed", componentID)
+	}
 }
 
 // setStatus is used to bring up or bring down the interface
@@ -216,7 +237,7 @@ func setTUN(fd syscall.Handle, network string) error {
 // openDev find and open an interface.
 func openDev(config Config) (ifce *Interface, err error) {
 	// find the device in registry.
-	deviceid, err := getdeviceid(config.PlatformSpecificParams.ComponentID)
+	deviceid, err := getdeviceid(config.PlatformSpecificParams.ComponentID, config.PlatformSpecificParams.InterfaceName)
 	if err != nil {
 		return nil, err
 	}

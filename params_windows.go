@@ -9,6 +9,10 @@ type PlatformSpecificParams struct {
 	// use the default ComponentId. The default ComponentId is set to tap0901,
 	// the one used by OpenVPN.
 	ComponentID string
+	// Of course, you may have multiple tap0901 adapters on the system, in which
+	// case we need a friendlier way to identify them. In that case we can use
+	// the friendly name of the network adapter as set in Control Panel.
+	InterfaceName string
 	// Network is required when creating a TUN interface. The library will call
 	// net.ParseCIDR() to parse this string into LocalIP, RemoteNetaddr,
 	// RemoteNetmask. The underlying driver will need those to generate ARP
@@ -25,6 +29,7 @@ type PlatformSpecificParams struct {
 func defaultPlatformSpecificParams() PlatformSpecificParams {
 	return PlatformSpecificParams{
 		ComponentID: "tap0901",
+		InterfaceName: "",
 		Network:     "192.168.1.10/24",
 	}
 }
