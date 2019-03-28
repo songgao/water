@@ -220,6 +220,21 @@ ping 10.1.0.255
 
 You'll see output containing the IPv4 ICMP frame same as the Linux version.
 
+#### Specifying interface name
+
+If you are going to use multiple TAP devices on the Windows, there is a way to specify an interface name to select the exact device that you need:
+
+```go
+	ifce, err := water.New(water.Config{
+		DeviceType: water.TAP,
+		PlatformSpecificParams: water.PlatformSpecificParams{
+			ComponentID:   "tap0901",
+			InterfaceName: "Ethernet 3",
+			Network:       "192.168.1.10/24",
+		},
+	})
+```
+
 ## TODO
 * tuntaposx for TAP on Darwin
 
