@@ -39,8 +39,9 @@ func TestBroadcastTAP(t *testing.T) {
 	setupIfce(t, net.IPNet{IP: self, Mask: mask}, ifce.Name())
 	startBroadcast(t, brd)
 
-	dataCh := make(chan []byte, 8)
-	startRead(dataCh, ifce)
+	dataCh := make(chan []byte)
+	errCh := make(chan error)
+	startRead(t, ifce, dataCh, errCh)
 
 	timeout := time.NewTimer(8 * time.Second).C
 
@@ -70,6 +71,8 @@ readFrame:
 			}
 			t.Logf("received broadcast frame: %#v\n", buffer)
 			break readFrame
+		case err := <-errCh:
+			t.Fatalf("read error: %v", err)
 		case <-timeout:
 			t.Fatal("Waiting for broadcast packet timeout")
 		}
