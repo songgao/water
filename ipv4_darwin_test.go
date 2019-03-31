@@ -32,11 +32,12 @@ func TestP2PTUN(t *testing.T) {
 		t.Fatalf("creating TUN error: %v\n", err)
 	}
 
+	dataCh := make(chan []byte)
+	errCh := make(chan error)
+	startRead(t, ifce, dataCh, errCh)
+
 	setupIfce(t, self, remote, ifce.Name())
 	startPing(t, remote)
-
-	dataCh := make(chan []byte, 8)
-	startRead(dataCh, ifce)
 
 	timeout := time.NewTimer(8 * time.Second).C
 
@@ -58,6 +59,8 @@ readFrame:
 			}
 			t.Logf("received broadcast packet: %#v\n", packet)
 			break readFrame
+		case err := <-errCh:
+			t.Fatalf("read error: %v", err)
 		case <-timeout:
 			t.Fatal("Waiting for broadcast packet timeout")
 		}
