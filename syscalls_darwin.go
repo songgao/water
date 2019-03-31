@@ -59,7 +59,10 @@ type sockaddrCtl struct {
 
 var sockaddrCtlSize uintptr = 32
 
-func newTUN(config Config) (ifce *Interface, err error) {
+func openDev(config Config) (ifce *Interface, err error) {
+	if config.DeviceType != TUN {
+		return nil, errors.New("only tun is implemented on this platform")
+	}
 	var fd int
 	// Supposed to be socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL), but ...
 	//
@@ -111,7 +114,7 @@ func newTUN(config Config) (ifce *Interface, err error) {
 		return nil, fmt.Errorf("error in syscall.Syscall6(syscall.SYS_GETSOCKOPT, ...): %v", err)
 	}
 
-	if err = syscall.SetNonblock(fd, true); err != nil {
+	if err = setNonBlock(fd); err != nil {
 		return nil, fmt.Errorf("setting non-blocking error")
 	}
 
@@ -122,10 +125,6 @@ func newTUN(config Config) (ifce *Interface, err error) {
 			f: os.NewFile(uintptr(fd), string(ifName.name[:])),
 		},
 	}, nil
-}
-
-func newTAP(config Config) (ifce *Interface, err error) {
-	return nil, errors.New("tap interface not implemented on this platform")
 }
 
 // tunReadCloser is a hack to work around the first 4 bytes "packet

@@ -14,7 +14,7 @@ func NewTAP(ifName string) (ifce *Interface, err error) {
 	fmt.Println("Deprecated: NewTAP(..) may be removed in the future. Please use New() instead.")
 	config := Config{DeviceType: TAP}
 	config.Name = ifName
-	return newTAP(config)
+	return openDev(config)
 }
 
 // NewTUN creates a new TUN interface whose name is ifName. If ifName is empty, a
@@ -26,5 +26,5 @@ func NewTUN(ifName string) (ifce *Interface, err error) {
 	fmt.Println("Deprecated: NewTUN(..) may be removed in the future. Please use New() instead.")
 	config := Config{DeviceType: TUN}
 	config.Name = ifName
-	return newTUN(config)
+	return openDev(config)
 }

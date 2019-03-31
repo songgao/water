@@ -57,10 +57,8 @@ func New(config Config) (ifce *Interface, err error) {
 		config.PlatformSpecificParams = defaultPlatformSpecificParams()
 	}
 	switch config.DeviceType {
-	case TUN:
-		return newTUN(config)
-	case TAP:
-		return newTAP(config)
+	case TUN, TAP:
+		return openDev(config)
 	default:
 		return nil, errors.New("unknown device type")
 	}

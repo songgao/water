@@ -306,11 +306,3 @@ func openDev(config Config) (ifce *Interface, err error) {
 
 	return nil, errIfceNameNotFound
 }
-
-func newTAP(config Config) (ifce *Interface, err error) {
-	return openDev(config)
-}
-
-func newTUN(config Config) (ifce *Interface, err error) {
-	return openDev(config)
-}

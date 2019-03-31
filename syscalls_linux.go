@@ -28,54 +28,26 @@ func ioctl(fd uintptr, request uintptr, argp uintptr) error {
 	return nil
 }
 
-func newTAP(config Config) (ifce *Interface, err error) {
-	fdInt, err := syscall.Open("/dev/net/tun", os.O_RDWR|syscall.O_NONBLOCK, 0)
-	if err != nil {
-		return nil, err
+func setupFd(config Config, fd uintptr) (name string, err error) {
+	var flags uint16 = cIFFNOPI
+	if config.DeviceType == TUN {
+		flags |= cIFFTUN
+	} else {
+		flags |= cIFFTAP
 	}
-	fd := uintptr(fdInt)
-
-	var flags uint16
-	flags = cIFFTAP | cIFFNOPI
 	if config.PlatformSpecificParams.MultiQueue {
 		flags |= cIFFMULTIQUEUE
 	}
-	name, err := createInterface(fd, config.Name, flags)
-	if err != nil {
-		return nil, err
+
+	if name, err = createInterface(fd, config.Name, flags); err != nil {
+		return "", err
 	}
 
 	if err = setDeviceOptions(fd, config); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	ifce = &Interface{isTAP: true, ReadWriteCloser: os.NewFile(fd, "tun"), name: name}
-	return
-}
-
-func newTUN(config Config) (ifce *Interface, err error) {
-	fdInt, err := syscall.Open("/dev/net/tun", os.O_RDWR|syscall.O_NONBLOCK, 0)
-	if err != nil {
-		return nil, err
-	}
-	fd := uintptr(fdInt)
-
-	var flags uint16
-	flags = cIFFTUN | cIFFNOPI
-	if config.PlatformSpecificParams.MultiQueue {
-		flags |= cIFFMULTIQUEUE
-	}
-	name, err := createInterface(fd, config.Name, flags)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = setDeviceOptions(fd, config); err != nil {
-		return nil, err
-	}
-
-	ifce = &Interface{isTAP: false, ReadWriteCloser: os.NewFile(fd, "tun"), name: name}
-	return
+	return name, nil
 }
 
 func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName string, err error) {
