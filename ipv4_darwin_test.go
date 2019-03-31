@@ -21,6 +21,15 @@ func setupIfce(t *testing.T, self net.IP, remote net.IP, dev string) {
 	}
 }
 
+func teardownIfce(t *testing.T, ifce *Interface) {
+	if err := ifce.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("ifconfig", ifce.Name(), "down").Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestP2PTUN(t *testing.T) {
 	var (
 		self   = net.IPv4(10, 0, 42, 1)
@@ -31,6 +40,7 @@ func TestP2PTUN(t *testing.T) {
 	if err != nil {
 		t.Fatalf("creating TUN error: %v\n", err)
 	}
+	defer teardownIfce(t, ifce)
 
 	dataCh := make(chan []byte)
 	errCh := make(chan error)

@@ -24,6 +24,15 @@ func setupIfce(t *testing.T, ipNet net.IPNet, dev string) {
 	}
 }
 
+func teardownIfce(t *testing.T, ifce *Interface) {
+	if err := ifce.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("ip", "link", "set", ifce.Name(), "down").Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBroadcastTAP(t *testing.T) {
 	var (
 		self = net.IPv4(10, 0, 42, 1)
@@ -35,6 +44,7 @@ func TestBroadcastTAP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("creating TAP error: %v\n", err)
 	}
+	defer teardownIfce(t, ifce)
 
 	setupIfce(t, net.IPNet{IP: self, Mask: mask}, ifce.Name())
 	startBroadcast(t, brd)
