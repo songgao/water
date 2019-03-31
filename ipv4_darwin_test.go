@@ -4,13 +4,14 @@ import (
 	"net"
 	"os/exec"
 	"testing"
-	"time"
-
-	"github.com/songgao/water/waterutil"
 )
 
-func startPing(t *testing.T, dst net.IP) {
-	if err := exec.Command("ping", "-c", "4", dst.String()).Start(); err != nil {
+func startPing(t *testing.T, dst net.IP, dashB bool) {
+	params := []string{"-c", "4", dst.String()}
+	if dashB {
+		params = append([]string{"-b"}, params...)
+	}
+	if err := exec.Command("ping", params...).Start(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -42,37 +43,10 @@ func TestP2PTUN(t *testing.T) {
 	}
 	defer teardownIfce(t, ifce)
 
-	dataCh := make(chan []byte)
-	errCh := make(chan error)
-	startRead(t, ifce, dataCh, errCh)
+	dataCh, errCh := startRead(t, ifce)
 
 	setupIfce(t, self, remote, ifce.Name())
-	startPing(t, remote)
+	startPing(t, remote, false)
 
-	timeout := time.NewTimer(8 * time.Second).C
-
-readFrame:
-	for {
-		select {
-		case packet := <-dataCh:
-			if !waterutil.IsIPv4(packet) {
-				continue readFrame
-			}
-			if !waterutil.IPv4Source(packet).Equal(self) {
-				continue readFrame
-			}
-			if !waterutil.IPv4Destination(packet).Equal(remote) {
-				continue readFrame
-			}
-			if waterutil.IPv4Protocol(packet) != waterutil.ICMP {
-				continue readFrame
-			}
-			t.Logf("received broadcast packet: %#v\n", packet)
-			break readFrame
-		case err := <-errCh:
-			t.Fatalf("read error: %v", err)
-		case <-timeout:
-			t.Fatal("Waiting for broadcast packet timeout")
-		}
-	}
+	waitForPingOrBust(t, false, false, self, remote, dataCh, errCh)
 }
