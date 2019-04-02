@@ -94,11 +94,29 @@ func newOverlapped() (*syscall.Overlapped, error) {
 }
 
 type wfile struct {
-	fd syscall.Handle
-	rl sync.Mutex
-	wl sync.Mutex
-	ro *syscall.Overlapped
-	wo *syscall.Overlapped
+	fd         syscall.Handle
+	rl         sync.Mutex
+	wl         sync.Mutex
+	ro         *syscall.Overlapped
+	wo         *syscall.Overlapped
+	name       string
+	deviceType DeviceType
+}
+
+func (f *wfile) Name() string {
+	return f.name
+}
+
+func (f *wfile) IsTAP() bool {
+	return f.deviceType == TAP
+}
+
+func (f *wfile) IsTUN() bool {
+	return f.deviceType == TUN
+}
+
+func (f *wfile) Type() DeviceType {
+	return f.deviceType
 }
 
 func (f *wfile) Close() error {
@@ -133,6 +151,10 @@ func (f *wfile) Read(b []byte) (int, error) {
 		return int(done), err
 	}
 	return getOverlappedResult(f.fd, f.ro)
+}
+
+func (f *wfile) Sys() interface{} {
+	return f.fd
 }
 
 func ctl_code(device_type, function, method, access uint32) uint32 {
@@ -233,7 +255,7 @@ func setTUN(fd syscall.Handle, network string) error {
 }
 
 // openDev find and open an interface.
-func openDev(config Config) (ifce *Interface, err error) {
+func openDev(config Config) (Interface, error) {
 	// find the device in registry.
 	deviceid, err := getdeviceid(config.PlatformSpecificParams.ComponentID, config.PlatformSpecificParams.InterfaceName)
 	if err != nil {
@@ -270,14 +292,18 @@ func openDev(config Config) (ifce *Interface, err error) {
 	// fd := os.NewFile(uintptr(file), path)
 	ro, err := newOverlapped()
 	if err != nil {
-		return
+		return nil, err
 	}
 	wo, err := newOverlapped()
 	if err != nil {
-		return
+		return nil, err
 	}
-	fd := &wfile{fd: file, ro: ro, wo: wo}
-	ifce = &Interface{isTAP: (config.DeviceType == TAP), ReadWriteCloser: fd}
+	fd := &wfile{
+		fd:         file,
+		ro:         ro,
+		wo:         wo,
+		deviceType: config.DeviceType,
+	}
 
 	// bring up device.
 	if err := setStatus(file, true); err != nil {
@@ -294,13 +320,13 @@ func openDev(config Config) (ifce *Interface, err error) {
 	// find the name of tap interface(u need it to set the ip or other command)
 	ifces, err := net.Interfaces()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	for _, v := range ifces {
 		if bytes.Equal(v.HardwareAddr[:6], mac[:6]) {
-			ifce.name = v.Name
-			return
+			fd.name = v.Name
+			return fd, nil
 		}
 	}
 

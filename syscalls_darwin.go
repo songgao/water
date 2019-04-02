@@ -59,11 +59,12 @@ type sockaddrCtl struct {
 
 var sockaddrCtlSize uintptr = 32
 
-func openDev(config Config) (ifce *Interface, err error) {
+func openDev(config Config) (Interface, error) {
 	if config.DeviceType != TUN {
 		return nil, errors.New("only tun is implemented on this platform")
 	}
 	var fd int
+	var err error
 	// Supposed to be socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL), but ...
 	//
 	// In sys/socket.h:
@@ -118,9 +119,10 @@ func openDev(config Config) (ifce *Interface, err error) {
 		return nil, fmt.Errorf("setting non-blocking error")
 	}
 
-	return &Interface{
-		isTAP: false,
-		name:  string(ifName.name[:ifNameSize-1 /* -1 is for \0 */]),
+	return &ifce{
+		deviceType: config.DeviceType,
+		fd:         uintptr(fd),
+		name:       string(ifName.name[:ifNameSize-1 /* -1 is for \0 */]),
 		ReadWriteCloser: &tunReadCloser{
 			f: os.NewFile(uintptr(fd), string(ifName.name[:])),
 		},

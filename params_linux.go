@@ -37,6 +37,11 @@ type PlatformSpecificParams struct {
 	// interface.  From version 3.8, Linux supports multiqueue tuntap which can
 	// uses multiple file descriptors (queues) to parallelize packets sending
 	// or receiving.
+	//
+	// MultiQueue (Linux kernel > 3.8): With MultiQueue enabled, user should
+	// hold multiple interfaces to send/receive packet in parallel.  Kernel
+	// document about MultiQueue:
+	// https://www.kernel.org/doc/Documentation/networking/tuntap.txt
 	MultiQueue bool
 }
 

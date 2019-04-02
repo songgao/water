@@ -5,23 +5,36 @@ import (
 	"io"
 )
 
-// Interface is a TUN/TAP interface.
-//
-// MultiQueue(Linux kernel > 3.8): With MultiQueue enabled, user should hold multiple
-// interfaces to send/receive packet in parallel.
-// Kernel document about MultiQueue: https://www.kernel.org/doc/Documentation/networking/tuntap.txt
-type Interface struct {
-	isTAP bool
+// Interface represents a TUN/TAP interface.
+type Interface interface {
+	// Use Read() and Write() methods to read from and write into this TUN/TAP
+	// interface. In TAP interface, each call corresponds to an Ethernet frame.
+	// In TUN mode, each call corresponds to an IP packet.
 	io.ReadWriteCloser
-	name string
+
+	// IsTUN returns true if ifce is a TUN interface.
+	IsTUN() bool
+	// IsTAP returns true if ifce is a TAP interface.
+	IsTAP() bool
+	// DeviceType returns the interface's device type.
+	Type() DeviceType
+	// Name returns the name of the interface.
+	Name() string
+	// Sys returns the underlying system interface for the interface. This is
+	// useful if caller needs to perform system calls directly on the tun/tap
+	// device.
+	//
+	// On Unix systems, this returns a file descriptor of uintptr type. On
+	// Windows, this returns a syscall.Handle.
+	Sys() interface{}
 }
 
 // DeviceType is the type for specifying device types.
 type DeviceType int
 
-// TUN and TAP device types.
+// Constants for TUN and TAP interfaces.
 const (
-	_ = iota
+	_ DeviceType = iota
 	TUN
 	TAP
 )
@@ -49,7 +62,7 @@ func defaultConfig() Config {
 var zeroConfig Config
 
 // New creates a new TUN/TAP interface using config.
-func New(config Config) (ifce *Interface, err error) {
+func New(config Config) (ifce Interface, err error) {
 	if zeroConfig == config {
 		config = defaultConfig()
 	}
@@ -62,19 +75,4 @@ func New(config Config) (ifce *Interface, err error) {
 	default:
 		return nil, errors.New("unknown device type")
 	}
-}
-
-// IsTUN returns true if ifce is a TUN interface.
-func (ifce *Interface) IsTUN() bool {
-	return !ifce.isTAP
-}
-
-// IsTAP returns true if ifce is a TAP interface.
-func (ifce *Interface) IsTAP() bool {
-	return ifce.isTAP
-}
-
-// Name returns the interface name of ifce, e.g. tun0, tap1, tun0, etc..
-func (ifce *Interface) Name() string {
-	return ifce.name
 }

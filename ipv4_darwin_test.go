@@ -22,7 +22,7 @@ func setupIfce(t *testing.T, self net.IP, remote net.IP, dev string) {
 	}
 }
 
-func teardownIfce(t *testing.T, ifce *Interface) {
+func teardownIfce(t *testing.T, ifce Interface) {
 	if err := ifce.Close(); err != nil {
 		t.Fatal(err)
 	}
