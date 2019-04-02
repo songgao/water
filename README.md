@@ -1,16 +1,9 @@
-# water
+[![Build Status](https://travis-ci.org/songgao/water.svg?branch=master)](https://travis-ci.org/songgao/water)
+[![GoDoc](https://godoc.org/github.com/songgao/water?status.svg)](https://godoc.org/github.com/songgao/water)
 
-`water` is a native Go library for [TUN/TAP](http://en.wikipedia.org/wiki/TUN/TAP) interfaces.
-
-`water` is designed to be simple and efficient. It
-
-* wraps almost only syscalls and uses only Go standard types;
-* exposes standard interfaces; plays well with standard packages like `io`, `bufio`, etc..
-* does not handle memory management (allocating/destructing slice). It's up to user to decide whether/how to reuse buffers.
-
-~~`water/waterutil` has some useful functions to interpret MAC frame headers and IP packet headers. It also contains some constants such as protocol numbers and ethernet frame types.~~
-
-See https://github.com/songgao/packets for functions for parsing various packets.
+`water` is a pure Go package for working with
+[TUN/TAP](http://en.wikipedia.org/wiki/TUN/TAP) interfaces. It works well with
+Go's standard library and has no external dependency.
 
 ## Supported Platforms
 
@@ -19,15 +12,18 @@ See https://github.com/songgao/packets for functions for parsing various packets
 * macOS (point-to-point TUN only)
 
 ## Installation
+
 ```
 go get -u github.com/songgao/water
-go get -u github.com/songgao/water/waterutil
 ```
 
 ## Documentation
-[http://godoc.org/github.com/songgao/water](http://godoc.org/github.com/songgao/water)
 
-## Example
+* [Linux](http://godoc.org/github.com/songgao/water?GOOS=linux)
+* [macOS](http://godoc.org/github.com/songgao/water?GOOS=darwin)
+* [Windows](http://godoc.org/github.com/songgao/water?GOOS=windows)
+
+## Getting Started
 
 ### TAP on Linux:
 
@@ -234,9 +230,3 @@ If you are going to use multiple TAP devices on the Windows, there is a way to s
 		},
 	})
 ```
-
-## TODO
-* tuntaposx for TAP on Darwin
-
-## Alternatives
-`tuntap`: [https://code.google.com/p/tuntap/](https://code.google.com/p/tuntap/)
