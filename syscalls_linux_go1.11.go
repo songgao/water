@@ -7,8 +7,9 @@ import (
 	"syscall"
 )
 
-func openDev(config Config) (ifce *Interface, err error) {
+func openDev(config Config) (Interface, error) {
 	var fdInt int
+	var err error
 	if fdInt, err = syscall.Open(
 		"/dev/net/tun", os.O_RDWR|syscall.O_NONBLOCK, 0); err != nil {
 		return nil, err
@@ -19,9 +20,10 @@ func openDev(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	return &Interface{
-		isTAP:           config.DeviceType == TAP,
-		ReadWriteCloser: os.NewFile(uintptr(fdInt), "tun"),
+	return &ifce{
+		deviceType:      config.DeviceType,
+		fd:              uintptr(fdInt),
 		name:            name,
+		ReadWriteCloser: os.NewFile(uintptr(fdInt), "tun"),
 	}, nil
 }

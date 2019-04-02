@@ -6,8 +6,9 @@ import (
 	"os"
 )
 
-func openDev(config Config) (ifce *Interface, err error) {
+func openDev(config Config) (Interface, error) {
 	var file *os.File
+	var err error
 	if file, err = os.OpenFile(
 		"/dev/net/tun", os.O_RDWR, 0); err != nil {
 		return nil, err
@@ -18,9 +19,10 @@ func openDev(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	return &Interface{
-		isTAP:           config.DeviceType == TAP,
-		ReadWriteCloser: file,
+	return &ifce{
+		deviceType:      config.DeviceType,
+		fd:              file.Fd(),
 		name:            name,
+		ReadWriteCloser: file,
 	}, nil
 }

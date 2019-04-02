@@ -1,4 +1,11 @@
-// Package water is a simple TUN/TAP interface library that efficiently works
-// with standard packages like io, bufio, etc.. Use waterutil with it to work
-// with TUN/TAP packets/frames.
+// Package water encapsulates system calls for working with TUN/TAP interfaces,
+// in pure Go.
+//
+// Platform specific docs:
+//
+// Linux: https://godoc.org/github.com/songgao/water?GOOS=lnux
+//
+// macOS: https://godoc.org/github.com/songgao/water?GOOS=darwin
+//
+// Windows: https://godoc.org/github.com/songgao/water?GOOS=windows
 package water
