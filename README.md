@@ -230,10 +230,159 @@ If you are going to use multiple TAP devices on the Windows, there is a way to s
 		PlatformSpecificParams: water.PlatformSpecificParams{
 			ComponentID:   "tap0901",
 			InterfaceName: "Ethernet 3",
-			Network:       "192.168.1.10/24",
 		},
 	})
 ```
+
+### TUN on Windows:
+
+To use it with windows, you will need to install a [tap driver](https://github.com/OpenVPN/tap-windows6), or [OpenVPN client](https://github.com/OpenVPN/openvpn) for windows.
+
+#### Static mode
+```go
+package main
+
+import (
+	"github.com/songgao/water"
+	"fmt"
+	"log"
+	"net"
+)
+
+func main() {
+	config:=water.Config{
+		DeviceType: water.TUN,
+		PlatformSpecificParams: water.PlatformSpecificParams{
+			ComponentID: "tap0901",
+			Network:     "10.1.0.10/24",
+		}}
+	ifce, err := water.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	recvBuf:=make([]byte,1500)
+
+	for {
+		n, err := ifce.Read(recvBuf)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch recvBuf[0] >> 4 {
+		case 4:
+			fmt.Printf("IPv4 %s -> %s packet %x\n",
+				net.IPv4(recvBuf[12],recvBuf[13],recvBuf[14],recvBuf[15]),
+				net.IPv4(recvBuf[16],recvBuf[17],recvBuf[18],recvBuf[19]),
+				recvBuf[:n])
+		case 6:
+			//break to ignore ipv6 packet
+			ipv6IPsrc:=make(net.IP,16)
+			ipv6IPdst:=make(net.IP,16)
+			copy(ipv6IPsrc,recvBuf[8:24])
+			copy(ipv6IPdst,recvBuf[24:40])
+			fmt.Printf("IPv6 %s -> %s packet %x\n",
+			ipv6IPsrc,
+			ipv6IPdst,
+			recvBuf[:n],
+			)
+		}
+	}
+}
+```
+
+Run as Administrator:
+```dos
+go run main.go
+```
+
+Start a new Administrator cmd to assign static IP for device:
+
+```dos
+# Replace with your device name, it can be achieved by ifce.Name().
+netsh interface ip set address name="Ehternet 2" source=static addr=10.1.0.10 mask=255.255.255.0 gateway=none
+```
+
+In oreder to see IPv4 packets, you should ping a IP in network, e.g. 10.1.0.2:
+```dos
+ping 10.1.0.2
+```
+
+You'll see output containing the IPv4 ICMP packets.
+
+#### DHCP mode
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/songgao/water"
+	"log"
+	"net"
+)
+
+func main() {
+	// DHCPServer, Dns1 and Dn2 can be empty.
+	config := water.Config{
+		DeviceType: water.TUN,
+		PlatformSpecificParams: water.PlatformSpecificParams{
+			ComponentID: "tap0901",
+			Network:     "10.1.0.10/24",
+			IsDHCP:      true,
+			DHCPServer:  "10.1.0.1",
+			DNS1:        "8.8.8.8",
+			DNS2:        "1.1.1.1",
+		}}
+	ifce, err := water.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	recvBuf := make([]byte, 1500)
+
+	for {
+		n, err := ifce.Read(recvBuf)
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch recvBuf[0] >> 4 {
+		case 4:
+			fmt.Printf("IPv4 %s -> %s packet %x\n",
+				net.IPv4(recvBuf[12], recvBuf[13], recvBuf[14], recvBuf[15]),
+				net.IPv4(recvBuf[16], recvBuf[17], recvBuf[18], recvBuf[19]),
+				recvBuf[:n])
+		case 6:
+			//break to ignore ipv6 packet
+			ipv6IPsrc := make(net.IP, 16)
+			ipv6IPdst := make(net.IP, 16)
+			copy(ipv6IPsrc, recvBuf[8:24])
+			copy(ipv6IPdst, recvBuf[24:40])
+			fmt.Printf("IPv6 %s -> %s packet %x\n",
+				ipv6IPsrc,
+				ipv6IPdst,
+				recvBuf[:n],
+			)
+		}
+	}
+}
+```
+
+Run as Administrator:
+```dos
+go run main.go
+```
+
+Start a new Administrator cmd to configure device work on DHCP mode:
+
+```dos
+# Replace with your device name, it can be achieved by ifce.Name().
+netsh interface ip set address "Ehternet 2" dhcp
+netsh interface ip set dns "Ehteret 2" dhcp
+```
+
+In oreder to see IPv4 packets, you should ping a IP in network, e.g. 10.1.0.2:
+```dos
+ping 10.1.0.2
+```
+
+You'll see output containing the IPv4 ICMP packets.
 
 ## TODO
 * tuntaposx for TAP on Darwin

@@ -21,8 +21,8 @@ func setupIfce(t *testing.T, ipNet net.IPNet, dev string) {
 	args[6] = fmt.Sprintf("addr=%s", ipNet.IP)
 	args[7] = fmt.Sprintf("mask=%d.%d.%d.%d", ipNet.Mask[0], ipNet.Mask[1], ipNet.Mask[2], ipNet.Mask[3])
 	cmd := exec.Command("netsh", args...)
-	if err := cmd.Run(); err != nil {
-		t.Fatal(err)
+	if output, err := cmd.Output(); err != nil {
+		t.Fatal(string(output), err.Error())
 	}
 }
 

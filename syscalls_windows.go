@@ -232,6 +232,84 @@ func setTUN(fd syscall.Handle, network string) error {
 	return nil
 }
 
+// setDHCP is used to configure the IP address by DHCP in the underlying driver when using TUN
+func setDHCP(fd syscall.Handle, network, dhcpserver string) error {
+	var bytesReturned uint32
+	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+
+	localIP, remoteNet, err := net.ParseCIDR(network)
+	if err != nil {
+		return fmt.Errorf("Failed to parse network CIDR in config, %v", err)
+	}
+	localIP = localIP.To4()
+	if localIP == nil {
+		return fmt.Errorf("Provided network(%s) is not a valid IPv4 address", network)
+	}
+	dhcpserverIP := net.ParseIP(dhcpserver)
+	if dhcpserverIP != nil {
+		dhcpserverIP = dhcpserverIP.To4()
+		if dhcpserverIP == nil {
+			return fmt.Errorf("Provided gateway(%s) is not a valid IPv4 address", dhcpserver)
+		}
+	}
+
+	leaseTime := [4]byte{0x80, 0x33, 0xE1, 0x01} // uint32 of a year in seconds
+
+	arguments := make([]byte, 16)
+	copy(arguments[0:4], localIP)
+	copy(arguments[4:8], remoteNet.Mask)
+	copy(arguments[8:12], dhcpserverIP)
+	copy(arguments[12:16], leaseTime[:])
+
+	if err := syscall.DeviceIoControl(
+		fd, tap_win_ioctl_config_dhcp_masq,
+		&arguments[0], uint32(len(arguments)),
+		&rdbbuf[0], uint32(len(rdbbuf)),
+		&bytesReturned, nil); err != nil {
+		return fmt.Errorf("Configure DHCP failed: %s", err.Error())
+	}
+	return nil
+}
+
+// setDHCPDNS is used to configure DNS addresses by DHCP in the underlying driver when using TUN
+func setDHCPDNS(fd syscall.Handle, dns1, dns2 string) error {
+	if dns1 == "" {
+		return nil
+	}
+	var bytesReturned uint32
+	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+
+	dns1IP := net.ParseIP(dns1)
+	if dns1IP == nil {
+		return fmt.Errorf("Provided dns(%s) is not a valid IPv4 address", dns1)
+	}
+	dns1IP = dns1IP.To4()
+	if dns1IP == nil {
+		return fmt.Errorf("Provided dns(%s) is not a valid IPv4 address", dns1)
+	}
+	dns2IP := net.ParseIP(dns2)
+	if dns2IP != nil {
+		dns2IP = dns2IP.To4()
+	}
+
+	arguments := make([]byte, 6)
+	arguments[0] = 6
+	arguments[1] = byte(len(dns1IP))
+	copy(arguments[2:6], dns1IP)
+	if dns2IP != nil {
+		arguments[1] += byte(len(dns2IP))
+		arguments = append(arguments, dns2IP...)
+	}
+	if err := syscall.DeviceIoControl(
+		fd, tap_win_ioctl_config_dhcp_set_opt,
+		&arguments[0], uint32(len(arguments)),
+		&rdbbuf[0], uint32(len(rdbbuf)),
+		&bytesReturned, nil); err != nil {
+		return fmt.Errorf("Configure DHCP DNS failed: %s", err.Error())
+	}
+	return nil
+}
+
 // openDev find and open an interface.
 func openDev(config Config) (ifce *Interface, err error) {
 	// find the device in registry.
@@ -267,7 +345,6 @@ func openDev(config Config) (ifce *Interface, err error) {
 		return nil, err
 	}
 
-	// fd := os.NewFile(uintptr(file), path)
 	ro, err := newOverlapped()
 	if err != nil {
 		return
@@ -277,18 +354,26 @@ func openDev(config Config) (ifce *Interface, err error) {
 		return
 	}
 	fd := &wfile{fd: file, ro: ro, wo: wo}
-	ifce = &Interface{isTAP: (config.DeviceType == TAP), ReadWriteCloser: fd}
-
-	// bring up device.
-	if err := setStatus(file, true); err != nil {
-		return nil, err
-	}
+	ifce = &Interface{isTAP: config.DeviceType == TAP, ReadWriteCloser: fd}
 
 	//TUN
 	if config.DeviceType == TUN {
 		if err := setTUN(file, config.PlatformSpecificParams.Network); err != nil {
 			return nil, err
 		}
+		if config.IsDHCP {
+			if err := setDHCP(file, config.PlatformSpecificParams.Network, config.PlatformSpecificParams.DHCPServer); err != nil {
+				return nil, err
+			}
+			if err := setDHCPDNS(file, config.PlatformSpecificParams.DNS1, config.PlatformSpecificParams.DNS2); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// bring up device.
+	if err := setStatus(file, true); err != nil {
+		return nil, err
 	}
 
 	// find the name of tap interface(u need it to set the ip or other command)
