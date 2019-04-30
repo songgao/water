@@ -10,7 +10,7 @@
 
 ~~`water/waterutil` has some useful functions to interpret MAC frame headers and IP packet headers. It also contains some constants such as protocol numbers and ethernet frame types.~~
 
-See https://github.com/songgao/packets for functions for parsing various packets.
+See https://github.com/chengxuncc/packets for functions for parsing various packets.
 
 ## Supported Platforms
 
@@ -20,12 +20,12 @@ See https://github.com/songgao/packets for functions for parsing various packets
 
 ## Installation
 ```
-go get -u github.com/songgao/water
-go get -u github.com/songgao/water/waterutil
+go get -u github.com/chengxuncc/water
+go get -u github.com/chengxuncc/water/waterutil
 ```
 
 ## Documentation
-[http://godoc.org/github.com/songgao/water](http://godoc.org/github.com/songgao/water)
+[http://godoc.org/github.com/chengxuncc/water](http://godoc.org/github.com/chengxuncc/water)
 
 ## Example
 
@@ -37,8 +37,8 @@ package main
 import (
 	"log"
 
-	"github.com/songgao/packets/ethernet"
-	"github.com/songgao/water"
+	"github.com/chengxuncc/packets/ethernet"
+	"github.com/chengxuncc/water"
 )
 
 func main() {
@@ -102,7 +102,7 @@ package main
 import (
 	"log"
 
-	"github.com/songgao/water"
+	"github.com/chengxuncc/water"
 )
 
 func main() {
@@ -168,8 +168,8 @@ package main
 import (
 	"log"
 
-	"github.com/songgao/packets/ethernet"
-	"github.com/songgao/water"
+	"github.com/chengxuncc/packets/ethernet"
+	"github.com/chengxuncc/water"
 )
 
 func main() {
@@ -243,7 +243,7 @@ To use it with windows, you will need to install a [tap driver](https://github.c
 package main
 
 import (
-	"github.com/songgao/water"
+	"github.com/chengxuncc/water"
 	"fmt"
 	"log"
 	"net"
@@ -314,7 +314,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/songgao/water"
+	"github.com/chengxuncc/water"
 	"log"
 	"net"
 )
