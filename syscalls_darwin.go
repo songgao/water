@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -60,8 +61,13 @@ type sockaddrCtl struct {
 var sockaddrCtlSize uintptr = 32
 
 func openDev(config Config) (ifce *Interface, err error) {
+	if config.Driver == TunTapOSXDriver {
+		return openDevTunTapOSX(config)
+	} else if config.Driver != SystemDriver {
+		return nil, errors.New("unrecognized driver")
+	}
 	if config.DeviceType != TUN {
-		return nil, errors.New("only tun is implemented on this platform")
+		return nil, errors.New("only tun is implemented for SystemDriver, use TunTapOSXDriver for tap")
 	}
 	var fd int
 	// Supposed to be socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL), but ...
@@ -83,7 +89,7 @@ func openDev(config Config) (ifce *Interface, err error) {
 
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), uintptr(appleCTLIOCGINFO), uintptr(unsafe.Pointer(ctlInfo))); errno != 0 {
 		err = errno
-		return nil, fmt.Errorf("error in syscall.Syscall(syscall.SYS_IOTL, ...): %v", err)
+		return nil, fmt.Errorf("error in syscall.Syscall(syscall.SYS_IOCTL, ...): %v", err)
 	}
 
 	addrP := unsafe.Pointer(&sockaddrCtl{
@@ -124,6 +130,57 @@ func openDev(config Config) (ifce *Interface, err error) {
 		ReadWriteCloser: &tunReadCloser{
 			f: os.NewFile(uintptr(fd), string(ifName.name[:])),
 		},
+	}, nil
+}
+
+// openDevTunTapOSX opens tun / tap device, assuming tuntaposx is installed
+func openDevTunTapOSX(config Config) (ifce *Interface, err error) {
+	var fd int
+	var socketFD int
+
+	if config.DeviceType == TAP && !strings.HasPrefix(config.Name, "tap") {
+		return nil, errors.New("device name does not start with tap when creating a tap device")
+	} else if config.DeviceType == TUN && !strings.HasPrefix(config.Name, "tun") {
+		return nil, errors.New("device name does not start with tun when creating a tun device")
+	} else if config.DeviceType != TAP && config.DeviceType != TUN {
+		return nil, errors.New("unsupported DeviceType")
+	}
+	if len(config.Name) >= 15 {
+		return nil, errors.New("device name is too long")
+	}
+
+	if fd, err = syscall.Open(
+		"/dev/"+config.Name, os.O_RDWR|syscall.O_NONBLOCK, 0); err != nil {
+		return nil, err
+	}
+	// Note that we are not setting NONBLOCK on the fd itself since it breaks tuntaposx
+	// see https://sourceforge.net/p/tuntaposx/bugs/6/
+
+	// create socket so we can do SIO ioctls, we are not using it afterwards
+	if socketFD, err = syscall.Socket(syscall.AF_SYSTEM, syscall.SOCK_DGRAM, 2); err != nil {
+		return nil, fmt.Errorf("error in syscall.Socket: %v", err)
+	}
+	var ifReq = &struct {
+		ifName    [16]byte
+		ifruFlags int16
+		pad       [16]byte
+	}{}
+	copy(ifReq.ifName[:], []byte(config.Name))
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(socketFD), uintptr(syscall.SIOCGIFFLAGS), uintptr(unsafe.Pointer(ifReq))); errno != 0 {
+		err = errno
+		return nil, fmt.Errorf("error in syscall.Syscall(syscall.SYS_IOCTL, ...): %v", err)
+	}
+	ifReq.ifruFlags |= syscall.IFF_RUNNING | syscall.IFF_UP
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(socketFD), uintptr(syscall.SIOCSIFFLAGS), uintptr(unsafe.Pointer(ifReq))); errno != 0 {
+		err = errno
+		return nil, fmt.Errorf("error in syscall.Syscall(syscall.SYS_IOCTL, ...): %v", err)
+	}
+	syscall.Close(socketFD)
+
+	return &Interface{
+		isTAP:           config.DeviceType == TAP,
+		ReadWriteCloser: os.NewFile(uintptr(fd), "tun"),
+		name:            config.Name,
 	}, nil
 }
 
