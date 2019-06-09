@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func startPing(t *testing.T, dst net.IP, _ bool) {
@@ -51,4 +52,24 @@ func TestBroadcastTAP(t *testing.T) {
 	startPing(t, brd, true)
 
 	waitForPingOrBust(t, true, true, self, brd, dataCh, errCh)
+}
+
+func TestDHCP(t *testing.T) {
+	config := Config{
+		DeviceType: TUN,
+		PlatformSpecificParams: PlatformSpecificParams{
+			ComponentID: "tap0901",
+			Network:     "10.1.0.10/24",
+			IsDHCP:      true,
+			DHCPServer:  "10.1.0.1",
+			DNS1:        "1.1.1.1",
+			DNS2:        "8.8.8.8",
+		}}
+	ifce, err := New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("name:",ifce.Name())
+	time.Sleep(time.Second*60)
+
 }

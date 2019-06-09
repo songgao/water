@@ -344,7 +344,7 @@ func main() {
 		}
 		switch recvBuf[0] >> 4 {
 		case 4:
-			fmt.Printf("IPv4 %s -> %s packet %x\n",
+			fmt.Printf("IPv4 [%s] -> [%s] packet [%x]\n",
 				net.IPv4(recvBuf[12], recvBuf[13], recvBuf[14], recvBuf[15]),
 				net.IPv4(recvBuf[16], recvBuf[17], recvBuf[18], recvBuf[19]),
 				recvBuf[:n])
@@ -354,7 +354,7 @@ func main() {
 			ipv6IPdst := make(net.IP, 16)
 			copy(ipv6IPsrc, recvBuf[8:24])
 			copy(ipv6IPdst, recvBuf[24:40])
-			fmt.Printf("IPv6 %s -> %s packet %x\n",
+			fmt.Printf("IPv6 [%s] -> [%s] packet [%x]\n",
 				ipv6IPsrc,
 				ipv6IPdst,
 				recvBuf[:n],
