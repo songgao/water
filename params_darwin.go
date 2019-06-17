@@ -1,11 +1,14 @@
 package water
 
+// MacOSDriverProvider enumerates possible MacOS TUN/TAP implementations
+type MacOSDriverProvider int
+
 const (
-	// SystemDriver refers to the default P2P driver
-	SystemDriver = 0
-	// TunTapOSXDriver refers to the third-party tuntaposx driver
+	// MacOSDriverSystem refers to the default P2P driver
+	MacOSDriverSystem MacOSDriverProvider = 0
+	// MacOSDriverTunTapOSX refers to the third-party tuntaposx driver
 	// see https://sourceforge.net/p/tuntaposx
-	TunTapOSXDriver = 1
+	MacOSDriverTunTapOSX MacOSDriverProvider = 1
 )
 
 // PlatformSpecificParams defines parameters in Config that are specific to
@@ -19,7 +22,7 @@ type PlatformSpecificParams struct {
 	Name string
 	// Driver should be set if an alternative driver is desired
 	// e.g. TunTapOSXDriver
-	Driver int
+	Driver MacOSDriverProvider
 }
 
 func defaultPlatformSpecificParams() PlatformSpecificParams {
