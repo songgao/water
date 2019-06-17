@@ -61,11 +61,17 @@ type sockaddrCtl struct {
 var sockaddrCtlSize uintptr = 32
 
 func openDev(config Config) (ifce *Interface, err error) {
-	if config.Driver == TunTapOSXDriver {
+	if config.Driver == MacOSDriverTunTapOSX {
 		return openDevTunTapOSX(config)
-	} else if config.Driver != SystemDriver {
-		return nil, errors.New("unrecognized driver")
 	}
+	if config.Driver == MacOSDriverSystem {
+		return openDevSystem(config)
+	}
+	return nil, errors.New("unrecognized driver")
+}
+
+// openDevSystem opens tun device on system
+func openDevSystem(config Config) (ifce *Interface, err error) {
 	if config.DeviceType != TUN {
 		return nil, errors.New("only tun is implemented for SystemDriver, use TunTapOSXDriver for tap")
 	}
@@ -140,9 +146,11 @@ func openDevTunTapOSX(config Config) (ifce *Interface, err error) {
 
 	if config.DeviceType == TAP && !strings.HasPrefix(config.Name, "tap") {
 		return nil, errors.New("device name does not start with tap when creating a tap device")
-	} else if config.DeviceType == TUN && !strings.HasPrefix(config.Name, "tun") {
+	}
+	if config.DeviceType == TUN && !strings.HasPrefix(config.Name, "tun") {
 		return nil, errors.New("device name does not start with tun when creating a tun device")
-	} else if config.DeviceType != TAP && config.DeviceType != TUN {
+	}
+	if config.DeviceType != TAP && config.DeviceType != TUN {
 		return nil, errors.New("unsupported DeviceType")
 	}
 	if len(config.Name) >= 15 {
