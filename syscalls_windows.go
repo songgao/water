@@ -114,7 +114,10 @@ func (f *wfile) Write(b []byte) (int, error) {
 	}
 	var n uint32
 	err := syscall.WriteFile(f.fd, b, &n, f.wo)
-	if err != nil && err != syscall.ERROR_IO_PENDING {
+	switch err {
+	case syscall.ERROR_IO_PENDING, syscall.ERROR_MORE_DATA:
+		return getOverlappedResult(f.fd, f.wo)
+	default:
 		return int(n), err
 	}
 	return getOverlappedResult(f.fd, f.wo)
@@ -129,7 +132,10 @@ func (f *wfile) Read(b []byte) (int, error) {
 	}
 	var done uint32
 	err := syscall.ReadFile(f.fd, b, &done, f.ro)
-	if err != nil && err != syscall.ERROR_IO_PENDING {
+	switch err {
+	case syscall.ERROR_IO_PENDING, syscall.ERROR_MORE_DATA:
+		return getOverlappedResult(f.fd, f.wo)
+	default:
 		return int(done), err
 	}
 	return getOverlappedResult(f.fd, f.ro)
