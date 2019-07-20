@@ -115,7 +115,7 @@ func (f *wfile) Write(b []byte) (int, error) {
 	var n uint32
 	err := syscall.WriteFile(f.fd, b, &n, f.wo)
 	switch err {
-	case syscall.ERROR_IO_PENDING, syscall.ERROR_MORE_DATA:
+	case syscall.ERROR_IO_PENDING:
 		return getOverlappedResult(f.fd, f.wo)
 	default:
 		return int(n), err
@@ -123,22 +123,29 @@ func (f *wfile) Write(b []byte) (int, error) {
 	return getOverlappedResult(f.fd, f.wo)
 }
 
-func (f *wfile) Read(b []byte) (int, error) {
+func (f *wfile) Read(b []byte) (n int, err error) {
 	f.rl.Lock()
 	defer f.rl.Unlock()
 
 	if err := resetEvent(f.ro.HEvent); err != nil {
 		return 0, err
 	}
-	var done uint32
-	err := syscall.ReadFile(f.fd, b, &done, f.ro)
-	switch err {
-	case syscall.ERROR_IO_PENDING, syscall.ERROR_MORE_DATA:
-		return getOverlappedResult(f.fd, f.wo)
-	default:
-		return int(done), err
+	for {
+		var done uint32
+		err = syscall.ReadFile(f.fd, b[n:], &done, f.ro)
+		n += int(done)
+		switch err {
+		case syscall.ERROR_MORE_DATA:
+			continue
+		case syscall.ERROR_IO_PENDING:
+			return getOverlappedResult(f.fd, f.ro)
+		case nil:
+			break
+		default:
+			return 0, err
+		}
 	}
-	return getOverlappedResult(f.fd, f.ro)
+	return int(n), err
 }
 
 func ctl_code(device_type, function, method, access uint32) uint32 {
