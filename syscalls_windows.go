@@ -18,8 +18,10 @@ import (
 // https://github.com/OpenVPN/openvpn
 
 const (
-	// tapDriverKey is a location of the TAP driver key.
+	// tapDriverKey is the location of the TAP driver key.
 	tapDriverKey = `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
+	// netConfigKey is the location of the TAP adapter's network config.
+	netConfigKey = `SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}`
 )
 
 var (
@@ -173,7 +175,7 @@ func getdeviceid(componentID string, interfaceName string) (deviceid string, err
 				continue
 			}
 			if len(interfaceName) > 0 {
-				key2 := fmt.Sprintf("%s\\%s\\Connection", tapDriverKey, val)
+				key2 := fmt.Sprintf("%s\\%s\\Connection", netConfigKey, val)
 				k2, err := registry.OpenKey(registry.LOCAL_MACHINE, key2, registry.READ)
 				if err != nil {
 					continue
