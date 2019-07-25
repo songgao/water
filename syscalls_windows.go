@@ -298,6 +298,9 @@ func openDev(config Config) (ifce *Interface, err error) {
 	}
 
 	for _, v := range ifces {
+		if len(v.HardwareAddr) < 6 {
+			continue
+		}
 		if bytes.Equal(v.HardwareAddr[:6], mac[:6]) {
 			ifce.name = v.Name
 			return
