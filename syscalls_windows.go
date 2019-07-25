@@ -128,7 +128,9 @@ func (f *wfile) Read(b []byte) (n int, err error) {
 	defer f.rl.Unlock()
 
 	if err := resetEvent(f.ro.HEvent); err != nil {
-		return 0, err
+		if err != syscall.ERROR_MORE_DATA {
+			return 0, err
+		}
 	}
 	for {
 		var done uint32
