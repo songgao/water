@@ -75,6 +75,15 @@ func openDevSystem(config Config) (ifce *Interface, err error) {
 	if config.DeviceType != TUN {
 		return nil, errors.New("only tun is implemented for SystemDriver, use TunTapOSXDriver for tap")
 	}
+
+	ifIndex := -1
+	if config.Name != "" {
+		_, err := fmt.Sscanf(config.Name, "utun%d", &ifIndex)
+		if err != nil || ifIndex < 0 {
+			return nil, fmt.Errorf("Interface name must be utun[0-9]+")
+		}
+	}
+
 	var fd int
 	// Supposed to be socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL), but ...
 	//
@@ -106,7 +115,7 @@ func openDevSystem(config Config) (ifce *Interface, err error) {
 		ssSysaddr: 2,
 
 		scID:   ctlInfo.ctlID,
-		scUnit: 0,
+		scUnit: uint32(ifIndex) + 1,
 	})
 	if _, _, errno := syscall.RawSyscall(syscall.SYS_CONNECT, uintptr(fd), uintptr(addrP), uintptr(sockaddrCtlSize)); errno != 0 {
 		err = errno
