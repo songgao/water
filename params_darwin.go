@@ -17,9 +17,11 @@ const (
 // Currently it is not possible to set the interface name in macOS.
 type PlatformSpecificParams struct {
 	// Name is the name for the interface to be used.
-	// e.g. "tap0"
-	// Only valid if using TunTapOSXDriver.
+	//
+	// For TunTapOSXDriver, it should be something like "tap0".
+	// For SystemDriver, the name should match `utun[0-9]+`, e.g. utun233
 	Name string
+
 	// Driver should be set if an alternative driver is desired
 	// e.g. TunTapOSXDriver
 	Driver MacOSDriverProvider
