@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -85,7 +84,7 @@ func openDevSystem(config Config) (ifce *Interface, err error) {
 			return nil, fmt.Errorf("Interface name must be utun[0-9]+")
 		}
 		ifIndex, err = strconv.Atoi(config.Name[len(utunPrefix):])
-		if err != nil || ifIndex < 0 || ifIndex > math.MaxUint32-1 {
+		if err != nil || ifIndex < 0 {
 			return nil, fmt.Errorf("Interface name must be utun[0-9]+")
 		}
 	}
