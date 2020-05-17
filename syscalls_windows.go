@@ -281,16 +281,16 @@ func openDev(config Config) (ifce *Interface, err error) {
 	fd := &wfile{fd: file, ro: ro, wo: wo}
 	ifce = &Interface{isTAP: (config.DeviceType == TAP), ReadWriteCloser: fd}
 
-	// bring up device.
-	if err := setStatus(file, true); err != nil {
-		return nil, err
-	}
-
 	//TUN
 	if config.DeviceType == TUN {
 		if err := setTUN(file, config.PlatformSpecificParams.Network); err != nil {
 			return nil, err
 		}
+	}
+	
+	// bring up device.
+	if err := setStatus(file, true); err != nil {
+		return nil, err
 	}
 
 	// find the name of tap interface(u need it to set the ip or other command)
