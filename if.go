@@ -3,6 +3,9 @@ package water
 import (
 	"errors"
 	"io"
+	"net"
+	"syscall"
+	"unsafe"
 )
 
 // Interface is a TUN/TAP interface.
@@ -77,4 +80,48 @@ func (ifce *Interface) IsTAP() bool {
 // Name returns the interface name of ifce, e.g. tun0, tap1, tun0, etc..
 func (ifce *Interface) Name() string {
 	return ifce.name
+}
+
+// GetMAC returns the created interface's MAC address
+func (ifce *Interface) GetMAC() (string, error) {
+	var req ifReq
+	req.Flags = syscall.AF_UNIX
+	copy(req.Name[:], ifce.name)
+
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
+	if err != nil {
+		return "", err
+	}
+	defer syscall.Close(fd)
+
+	err = ioctl(uintptr(fd), syscall.SIOCGIFHWADDR, uintptr(unsafe.Pointer(&req)))
+	if err != nil {
+		return "", err
+	}
+	return net.HardwareAddr(req.Mac[:]).String(), nil
+}
+
+// SetMAC sets the MAC address for the interface
+func (ifce *Interface) SetMAC(mac string) error {
+	var req ifReq
+	req.Flags = syscall.AF_UNIX
+	copy(req.Name[:], ifce.name)
+
+	macBytes, err := net.ParseMAC(mac)
+	if err != nil {
+		return err
+	}
+	copy(req.Mac[:], macBytes)
+
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
+	if err != nil {
+		return err
+	}
+	defer syscall.Close(fd)
+
+	err = ioctl(uintptr(fd), syscall.SIOCSIFHWADDR, uintptr(unsafe.Pointer(&req)))
+	if err != nil {
+		return err
+	}
+	return err
 }

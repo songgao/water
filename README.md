@@ -20,7 +20,7 @@ See https://github.com/songgao/packets for functions for parsing various packets
 
 ## Installation
 ```
-go get -u github.com/songgao/water
+go get -u github.com/aos/water
 go get -u github.com/songgao/water/waterutil
 ```
 
@@ -38,7 +38,7 @@ import (
 	"log"
 
 	"github.com/songgao/packets/ethernet"
-	"github.com/songgao/water"
+	"github.com/aos/water"
 )
 
 func main() {
@@ -51,6 +51,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+        ifce.SetMAC("d6:db:b0:42:2c:7e")
+
+        mac, err := ifce.GetMAC()
+        if err != nil {
+                log.Fatal(err)
+        }
+        fmt.Println("MAC address:", mac)
+
 	var frame ethernet.Frame
 
 	for {
