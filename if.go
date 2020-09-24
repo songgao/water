@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"syscall"
 	"unsafe"
 )
@@ -90,9 +91,14 @@ func (ifce *Interface) GetMAC() (string, error) {
 
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
 	if err != nil {
-		return "", err
+		return "", os.NewSyscallError("socket", err)
 	}
 	defer syscall.Close(fd)
+
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err != nil {
+		return "", os.NewSyscallError("setsockopt", err)
+	}
 
 	err = ioctl(uintptr(fd), syscall.SIOCGIFHWADDR, uintptr(unsafe.Pointer(&req)))
 	if err != nil {
@@ -115,9 +121,14 @@ func (ifce *Interface) SetMAC(mac string) error {
 
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
 	if err != nil {
-		return err
+		return os.NewSyscallError("socket", err)
 	}
 	defer syscall.Close(fd)
+
+	err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
 
 	err = ioctl(uintptr(fd), syscall.SIOCSIFHWADDR, uintptr(unsafe.Pointer(&req)))
 	if err != nil {
