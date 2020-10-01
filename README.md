@@ -51,6 +51,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+        ifce.SetMAC("d6:db:b0:42:2c:7e")
+
+        mac, err := ifce.GetMAC()
+        if err != nil {
+                log.Fatal(err)
+        }
+        fmt.Println("MAC address:", mac)
+
 	var frame ethernet.Frame
 
 	for {

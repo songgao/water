@@ -17,7 +17,8 @@ const (
 type ifReq struct {
 	Name  [0x10]byte
 	Flags uint16
-	pad   [0x28 - 0x10 - 2]byte
+	Mac   [6]byte
+	pad   [0x28 - 0x10 - 8]byte
 }
 
 func ioctl(fd uintptr, request uintptr, argp uintptr) error {
