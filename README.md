@@ -20,7 +20,7 @@ See https://github.com/songgao/packets for functions for parsing various packets
 
 ## Installation
 ```
-go get -u github.com/aos/water
+go get -u github.com/songgao/water
 go get -u github.com/songgao/water/waterutil
 ```
 
@@ -38,7 +38,7 @@ import (
 	"log"
 
 	"github.com/songgao/packets/ethernet"
-	"github.com/aos/water"
+	"github.com/songgao/water"
 )
 
 func main() {

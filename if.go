@@ -134,5 +134,5 @@ func (ifce *Interface) SetMAC(mac string) error {
 	if err != nil {
 		return err
 	}
-	return err
+	return nil
 }
