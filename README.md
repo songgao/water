@@ -175,6 +175,9 @@ import (
 func main() {
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TAP,
+		PlatformSpecificParams: water.PlatformSpecificParams{
+			ComponentID: "root\\tap0901",
+		},
 	})
 	if err != nil {
 		log.Fatal(err)
