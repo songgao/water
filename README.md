@@ -29,6 +29,70 @@ go get -u github.com/songgao/water/waterutil
 
 ## Example
 
+### TUN on Linux:
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/songgao/water"
+)
+
+func main() {
+	config := water.Config{
+		DeviceType: water.TUN,
+	}
+	config.Name = "tun0"
+
+	ifce, err := water.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var frame = make([]byte, 1500, 1500)
+	for {
+		n, err := ifce.Read([]byte(frame))
+		if err != nil {
+			log.Fatal(err)
+		}
+		pkg := gopacket.NewPacket(frame[:n], layers.LayerTypeIPv4, gopacket.NoCopy)
+		if ipLayer := pkg.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+			ip := ipLayer.(*layers.IPv4)
+			if icmpLayer := pkg.Layer(layers.LayerTypeICMPv4); icmpLayer != nil {
+				log.Printf("Src: %v Dst: %v\n", ip.SrcIP, ip.DstIP)
+				icmp := icmpLayer.(*layers.ICMPv4)
+				icmp.TypeCode = layers.ICMPv4TypeEchoReply
+				ip.DstIP, ip.SrcIP = ip.SrcIP, ip.DstIP
+				buf := gopacket.NewSerializeBuffer()
+				opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
+				gopacket.SerializeLayers(buf,
+					opts,
+					ip,
+					icmp,
+					gopacket.Payload(pkg.ApplicationLayer().Payload()),
+				)
+				ifce.Write(buf.Bytes())
+			}
+		}
+	}
+}
+
+```
+
+```bash
+sudo go run main.go
+```
+In a new terminal:
+
+```bash
+sudo /sbin/ip link set dev tun0 up mtu 1500
+sudo /sbin/ip addr add dev tun0 local 10.255.255.253 peer 10.255.255.254
+ping 10.255.255.254
+```
+
 ### TAP on Linux:
 
 ```go
