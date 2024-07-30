@@ -38,6 +38,12 @@ type PlatformSpecificParams struct {
 	// uses multiple file descriptors (queues) to parallelize packets sending
 	// or receiving.
 	MultiQueue bool
+
+	// If PacketInfo is set the frame format is:
+	// 	 	Flags [2 bytes]
+	// 		Proto [2 bytes]
+	// 		Raw protocol(IP, IPv6, etc) frame.
+	PacketInfo bool
 }
 
 func defaultPlatformSpecificParams() PlatformSpecificParams {

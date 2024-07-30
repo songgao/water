@@ -29,7 +29,7 @@ func ioctl(fd uintptr, request uintptr, argp uintptr) error {
 }
 
 func setupFd(config Config, fd uintptr) (name string, err error) {
-	var flags uint16 = cIFFNOPI
+	var flags uint16
 	if config.DeviceType == TUN {
 		flags |= cIFFTUN
 	} else {
@@ -38,7 +38,9 @@ func setupFd(config Config, fd uintptr) (name string, err error) {
 	if config.PlatformSpecificParams.MultiQueue {
 		flags |= cIFFMULTIQUEUE
 	}
-
+	if !config.PlatformSpecificParams.PacketInfo {
+		flags |= cIFFNOPI
+	}
 	if name, err = createInterface(fd, config.Name, flags); err != nil {
 		return "", err
 	}
