@@ -98,18 +98,33 @@ jobs:
       - name: install Wintun
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           Invoke-WebRequest -Uri https://www.wintun.net/builds/wintun-0.14.1.zip -OutFile wintun.zip
           Expand-Archive -Path wintun.zip -DestinationPath wintun-dist
           Copy-Item wintun-dist\wintun\bin\amd64\wintun.dll -Destination .
+          if (-not (Test-Path .\wintun.dll)) { throw 'wintun.dll was not unpacked' }
 
       # The runner is already an administrator, which is what creating a Wintun
       # adapter requires. Tests whose driver is missing skip themselves, so the
       # tap-windows6 cases stay green here without OpenVPN installed.
+      #
+      # The test binary's flags have to be quoted. PowerShell's grammar excludes
+      # '.' from the characters a parameter name may contain, so a bare -test.v
+      # is tokenised as the parameter -test followed by a separate argument .v,
+      # and the binary rejects -test as an unknown flag. Quoting makes them plain
+      # string arguments, which are passed through untouched.
       - name: test
         shell: pwsh
+        env:
+          # We just installed Wintun, so a Wintun device that will not open here
+          # is a failure, not a reason to skip.
+          WATER_REQUIRE_WINTUN: "1"
         run: |
           go test -c -race -o water.test.exe .
-          .\water.test.exe -test.v -test.timeout 5m
+          if ($LASTEXITCODE -ne 0) { throw "building the test binary failed" }
+
+          .\water.test.exe '-test.v' '-test.timeout' '5m'
+          if ($LASTEXITCODE -ne 0) { throw "tests failed" }
 
   test-macos:
     name: test macos

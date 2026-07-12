@@ -3,10 +3,26 @@ package water
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
 )
+
+// TestWintunLoads reports which driver the environment actually has, so that a
+// run full of skips says why in its log rather than leaving it to be guessed at.
+func TestWintunLoads(t *testing.T) {
+	api, err := loadWintun()
+	if err != nil {
+		if os.Getenv("WATER_REQUIRE_WINTUN") != "" {
+			t.Fatalf("WATER_REQUIRE_WINTUN is set, but wintun.dll did not load: %v", err)
+		}
+		t.Skipf("wintun.dll not available: %v", err)
+	}
+
+	major, minor := api.RunningDriverVersion()
+	t.Logf("wintun.dll loaded; running driver version %d.%d", major, minor)
+}
 
 func startPing(t *testing.T, dst net.IP, _ bool) {
 	if err := exec.Command("ping", "-n", "4", dst.String()).Start(); err != nil {
@@ -59,14 +75,27 @@ func teardownIfce(t *testing.T, ifce *Interface) {
 // is not installed on this machine. Neither Wintun nor tap-windows6 ships with
 // Windows, so a missing driver is an untestable environment rather than a
 // failure.
+//
+// Except in CI, which puts wintun.dll next to the test binary on purpose and
+// sets WATER_REQUIRE_WINTUN to say so. There, a Wintun device that cannot be
+// created is a real failure: skipping would leave the job green while proving
+// nothing about the driver we went to the trouble of installing.
 func newIfceOrSkip(t *testing.T, config Config) *Interface {
 	t.Helper()
 
 	ifce, err := New(config)
-	if err != nil {
-		t.Skipf("cannot create the interface, skipping: %v", err)
+	if err == nil {
+		return ifce
 	}
-	return ifce
+
+	usesWintun := config.Driver == WindowsDriverWintun ||
+		(config.Driver == WindowsDriverAuto && config.DeviceType == TUN)
+	if usesWintun && os.Getenv("WATER_REQUIRE_WINTUN") != "" {
+		t.Fatalf("WATER_REQUIRE_WINTUN is set, so Wintun is expected to work here: %v", err)
+	}
+
+	t.Skipf("cannot create the interface, skipping: %v", err)
+	return nil
 }
 
 // TestUnicastTUN is the end-to-end check for TUN on Windows: bring an interface
