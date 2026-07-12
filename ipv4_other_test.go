@@ -1,4 +1,4 @@
-// +build !linux,!windows,!darwin
+//go:build !linux && !windows && !darwin
 
 package water
 

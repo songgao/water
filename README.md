@@ -14,14 +14,15 @@ See https://github.com/songgao/packets for functions for parsing various packets
 
 ## Supported Platforms
 
-* Linux
-* Windows (experimental; APIs might change)
-* macOS (point-to-point TUN only)
+| Platform | TUN | TAP | Driver |
+| --- | --- | --- | --- |
+| Linux | yes | yes | built into the kernel |
+| Windows | yes | yes | [Wintun](https://www.wintun.net) for TUN, [tap-windows6](https://github.com/OpenVPN/tap-windows6) for TAP and as a TUN fallback |
+| macOS | yes (point-to-point) | via [tuntaposx](https://sourceforge.net/p/tuntaposx) | `utun` built into the system |
 
 ## Installation
 ```
-go get -u github.com/songgao/water
-go get -u github.com/songgao/water/waterutil
+go get github.com/songgao/water
 ```
 
 ## Documentation
@@ -156,11 +157,80 @@ You'd see the ICMP packets printed out:
 1. Only Point-to-Point user TUN devices are supported. TAP devices are *not* supported natively by macOS.
 2. Custom interface names are not supported by macOS. Interface names are automatically generated serially, using the `utun<#>` naming convention.
 
-### TAP on Windows:
+### Windows
 
-To use it with windows, you will need to install a [tap driver](https://github.com/OpenVPN/tap-windows6), or [OpenVPN client](https://github.com/OpenVPN/openvpn) for windows.
+water speaks to two drivers on Windows, and picks between them for you:
 
-It's compatible with the Linux code.
+* **[Wintun](https://www.wintun.net)** — the layer 3 driver written for WireGuard, and the
+  right choice for **TUN**. It is kernel-signed, needs no adapter to be installed ahead of
+  time (water creates the adapter on `New()` and removes it again on `Close()`), and is a
+  real layer 3 device rather than an emulation on top of Ethernet. Ship `wintun.dll` next to
+  your executable — that is the whole install. It cannot do TAP.
+* **[tap-windows6](https://github.com/OpenVPN/tap-windows6)** — the driver that comes with
+  the [OpenVPN client](https://github.com/OpenVPN/openvpn), and the only way to get a **TAP**
+  device. It is also the TUN fallback when `wintun.dll` is not present. The adapter has to be
+  installed beforehand.
+
+By default (`WindowsDriverAuto`) a TUN device uses Wintun when `wintun.dll` can be loaded and
+tap-windows6 otherwise, and a TAP device always uses tap-windows6. Set
+`PlatformSpecificParams.Driver` to `WindowsDriverWintun` or `WindowsDriverTapWindows6` to pin
+one explicitly.
+
+Creating an interface requires **administrator rights** either way.
+
+#### TUN on Windows
+
+Download `wintun.dll` from [wintun.net](https://www.wintun.net) and put the one matching your
+architecture (`bin/amd64/wintun.dll`, say) next to your executable. Then:
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/songgao/water"
+)
+
+func main() {
+	ifce, err := water.New(water.Config{
+		DeviceType: water.TUN,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer ifce.Close()
+
+	log.Printf("Interface Name: %s\n", ifce.Name())
+
+	packet := make([]byte, 2000)
+	for {
+		n, err := ifce.Read(packet)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Packet Received: % x\n", packet[:n])
+	}
+}
+```
+
+Run it from an **administrator** prompt, then give the interface an address from a second
+administrator prompt (`ifce.Name()` prints the name to use):
+
+```dos
+netsh interface ip set address name="water0" source=static addr=10.1.0.10 mask=255.255.255.0 gateway=none
+```
+
+and send it some traffic:
+
+```dos
+ping 10.1.0.20
+```
+
+#### TAP on Windows
+
+TAP needs the tap-windows6 driver installed (installing the OpenVPN client does that). This is
+compatible with the Linux code:
 
 ```go
 package main
@@ -233,6 +303,31 @@ If you are going to use multiple TAP devices on the Windows, there is a way to s
 			Network:       "192.168.1.10/24",
 		},
 	})
+```
+
+For Wintun, `InterfaceName` instead *names* the adapter that water creates, rather than
+selecting an existing one. Left empty, water picks the first free name of the form `water0`,
+`water1`, ... Either way `ifce.Name()` reports the name the adapter ended up with, which is
+the name to hand to `netsh`.
+
+#### Closing an interface
+
+`Close()` releases a `Read()` that is parked waiting for a packet, on every platform, so the
+usual shape works on Windows too:
+
+```go
+go func() {
+	<-ctx.Done()
+	ifce.Close() // unblocks the Read below
+}()
+
+for {
+	n, err := ifce.Read(packet)
+	if errors.Is(err, os.ErrClosed) {
+		return
+	}
+	...
+}
 ```
 
 ## TODO

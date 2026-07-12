@@ -62,6 +62,12 @@ type sockaddrCtl struct {
 
 var sockaddrCtlSize uintptr = 32
 
+// setNonBlock hands the fd to the Go runtime's poller, which is what lets
+// Close() unblock a Read() that is parked waiting for a packet.
+func setNonBlock(fd int) error {
+	return syscall.SetNonblock(fd, true)
+}
+
 func openDev(config Config) (ifce *Interface, err error) {
 	if config.Driver == MacOSDriverTunTapOSX {
 		return openDevTunTapOSX(config)
@@ -231,7 +237,15 @@ func (t *tunReadCloser) Read(to []byte) (int, error) {
 	t.rBuf = t.rBuf[:len(to)+4]
 
 	n, err := t.f.Read(t.rBuf)
-	copy(to, t.rBuf[4:])
+	if n < 4 {
+		// A failed or truncated read carries no packet. Returning n-4 here would
+		// hand the caller a negative count, which panics io.Copy and bufio.
+		if err == nil && n >= 0 {
+			err = io.ErrUnexpectedEOF
+		}
+		return 0, err
+	}
+	copy(to, t.rBuf[4:n])
 	return n - 4, err
 }
 
@@ -262,6 +276,14 @@ func (t *tunReadCloser) Write(from []byte) (int, error) {
 	copy(t.wBuf[4:], from)
 
 	n, err := t.f.Write(t.wBuf)
+	if n < 4 {
+		// Nothing beyond (part of) the 4-byte header made it out. As in Read,
+		// n-4 would be a negative count.
+		if err == nil {
+			err = io.ErrShortWrite
+		}
+		return 0, err
+	}
 	return n - 4, err
 }
 

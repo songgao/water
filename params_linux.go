@@ -2,15 +2,17 @@ package water
 
 // DevicePermissions determines the owner and group owner for the newly created
 // interface.
+//
+// To leave both as Linux sets them -- owner and group -1, meaning any user and
+// any group -- leave Config.Permissions nil. These fields are unsigned, so there
+// is no in-band way to say "do not change this one"; setting Permissions at all
+// sets both.
 type DevicePermissions struct {
 	// Owner is the ID of the user which will be granted ownership of the
-	// device.  If set to a negative value, the owner value will not be
-	// changed.  By default, Linux sets the owner to -1, which allows any user.
+	// device.
 	Owner uint
 
 	// Group is the ID of the group which will be granted access to the device.
-	// If set to a negative value, the group value will not be changed.  By
-	// default, Linux sets the group to -1, which allows any group.
 	Group uint
 }
 

@@ -1,313 +1,137 @@
 package water
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"net"
+	"os"
 	"sync"
-	"syscall"
-	"unsafe"
-
-	"golang.org/x/sys/windows/registry"
 )
 
-// To use it with windows, you need a tap driver installed on windows.
-// https://github.com/OpenVPN/tap-windows6
-// or just install OpenVPN
-// https://github.com/OpenVPN/openvpn
+// water supports two drivers on Windows:
+//
+//   - Wintun (https://www.wintun.net), the layer 3 driver written for
+//     WireGuard. It is the better option by a wide margin: it is kernel-signed,
+//     needs no adapter to be installed ahead of time, and is a native TUN
+//     device rather than an emulation on top of Ethernet. It cannot do TAP.
+//
+//   - tap-windows6 (https://github.com/OpenVPN/tap-windows6), the driver
+//     shipped with OpenVPN, which is what water has always used. It is the only
+//     way to get a TAP device, and it is the fallback for TUN when wintun.dll
+//     is not around.
+//
+// Config.Driver picks between them; the default is to pick automatically.
 
-const (
-	// tapDriverKey is the location of the TAP driver key.
-	tapDriverKey = `SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}`
-	// netConfigKey is the location of the TAP adapter's network config.
-	netConfigKey = `SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}`
-)
+// errDriverUnavailable wraps the errors reported when a driver is not usable on
+// this machine at all -- as opposed to being usable but failing. Only the
+// former makes WindowsDriverAuto fall back to the other driver, because falling
+// back on the latter would replace an accurate error with a confusing one.
+var errDriverUnavailable = errors.New("driver not available")
 
-var (
-	errIfceNameNotFound = errors.New("Failed to find the name of interface")
-	// Device Control Codes
-	tap_win_ioctl_get_mac             = tap_control_code(1, 0)
-	tap_win_ioctl_get_version         = tap_control_code(2, 0)
-	tap_win_ioctl_get_mtu             = tap_control_code(3, 0)
-	tap_win_ioctl_get_info            = tap_control_code(4, 0)
-	tap_ioctl_config_point_to_point   = tap_control_code(5, 0)
-	tap_ioctl_set_media_status        = tap_control_code(6, 0)
-	tap_win_ioctl_config_dhcp_masq    = tap_control_code(7, 0)
-	tap_win_ioctl_get_log_line        = tap_control_code(8, 0)
-	tap_win_ioctl_config_dhcp_set_opt = tap_control_code(9, 0)
-	tap_ioctl_config_tun              = tap_control_code(10, 0)
-	// w32 api
-	file_device_unknown = uint32(0x00000022)
-	nCreateEvent,
-	nResetEvent,
-	nGetOverlappedResult uintptr
-)
-
-func init() {
-	k32, err := syscall.LoadLibrary("kernel32.dll")
-	if err != nil {
-		panic("LoadLibrary " + err.Error())
+func openDev(config Config) (*Interface, error) {
+	// Fill in per-field defaults. Config.New() only substitutes
+	// defaultPlatformSpecificParams() when PlatformSpecificParams is entirely
+	// zero, so a caller who sets just one field -- InterfaceName, say -- would
+	// otherwise end up with an empty ComponentID that can never match an
+	// adapter.
+	if config.ComponentID == "" {
+		config.ComponentID = defaultComponentID
 	}
-	defer syscall.FreeLibrary(k32)
+	if config.Network == "" {
+		config.Network = defaultNetwork
+	}
 
-	nCreateEvent = getProcAddr(k32, "CreateEventW")
-	nResetEvent = getProcAddr(k32, "ResetEvent")
-	nGetOverlappedResult = getProcAddr(k32, "GetOverlappedResult")
+	switch config.Driver {
+	case WindowsDriverWintun:
+		if config.DeviceType != TUN {
+			return nil, errors.New("water: Wintun supports TUN devices only; use WindowsDriverTapWindows6 for TAP")
+		}
+		return openDevWintun(config)
+
+	case WindowsDriverTapWindows6:
+		return openDevTapWindows6(config)
+
+	case WindowsDriverAuto:
+		// Wintun cannot do layer 2, so TAP always means tap-windows6.
+		if config.DeviceType != TUN {
+			return openDevTapWindows6(config)
+		}
+		ifce, err := openDevWintun(config)
+		if err == nil || !errors.Is(err, errDriverUnavailable) {
+			return ifce, err
+		}
+		// Wintun is not installed. Fall back to tap-windows6, and if that is
+		// missing too, report both so the user knows what to install.
+		noWintun := err
+		ifce, err = openDevTapWindows6(config)
+		if errors.Is(err, errDriverUnavailable) {
+			return nil, fmt.Errorf("water: no usable TUN driver on this system.\n"+
+				"  wintun:       %v\n"+
+				"  tap-windows6: %v", noWintun, err)
+		}
+		return ifce, err
+
+	default:
+		return nil, fmt.Errorf("water: unknown Windows driver %d", config.Driver)
+	}
 }
 
-func getProcAddr(lib syscall.Handle, name string) uintptr {
-	addr, err := syscall.GetProcAddress(lib, name)
-	if err != nil {
-		panic(name + " " + err.Error())
-	}
-	return addr
+// ioGate coordinates in-flight Read and Write calls with Close.
+//
+// Closing a TUN/TAP device is not simply a matter of closing the handle: a
+// reader is normally parked inside the OS waiting for a packet that may never
+// come, and yanking the handle out from under it is undefined behaviour. So
+// Close has to (1) refuse new I/O, (2) actively interrupt the I/O already in
+// flight, (3) wait for it to come back, and only then (4) tear the device down.
+// ioGate is steps 1 to 3; the driver supplies the interrupt and the teardown.
+type ioGate struct {
+	mu      sync.RWMutex // held for read by enter, for write by shutdown
+	closed  bool
+	running sync.WaitGroup
+	once    sync.Once
 }
 
-func resetEvent(h syscall.Handle) error {
-	r, _, err := syscall.Syscall(nResetEvent, 1, uintptr(h), 0, 0)
-	if r == 0 {
-		return err
+// enter registers an I/O operation, or reports os.ErrClosed if the device is
+// already closing. Every successful enter must be matched by a leave.
+//
+// Taking mu for reading around the closed check and the Add is what makes the
+// WaitGroup safe: it means no Add can start after shutdown has published
+// closed == true, and therefore no Add can race with running.Wait.
+func (g *ioGate) enter() error {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if g.closed {
+		return os.ErrClosed
 	}
+	g.running.Add(1)
 	return nil
 }
 
-func getOverlappedResult(h syscall.Handle, overlapped *syscall.Overlapped) (int, error) {
-	var n int
-	r, _, err := syscall.Syscall6(nGetOverlappedResult, 4,
-		uintptr(h),
-		uintptr(unsafe.Pointer(overlapped)),
-		uintptr(unsafe.Pointer(&n)), 1, 0, 0)
-	if r == 0 {
-		return n, err
-	}
+func (g *ioGate) leave() { g.running.Done() }
 
-	return n, nil
+// closing reports whether Close has been called. Read loops that park in the OS
+// consult it after waking up, to tell "a packet arrived" from "Close woke me".
+func (g *ioGate) closing() bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.closed
 }
 
-func newOverlapped() (*syscall.Overlapped, error) {
-	var overlapped syscall.Overlapped
-	r, _, err := syscall.Syscall6(nCreateEvent, 4, 0, 1, 0, 0, 0, 0)
-	if r == 0 {
-		return nil, err
-	}
-	overlapped.HEvent = syscall.Handle(r)
-	return &overlapped, nil
-}
+// shutdown is idempotent, and safe to call while Read or Write is blocked.
+//
+// interrupt must unblock any I/O currently in flight; it is called with no lock
+// held, and the operations it interrupts are expected to return promptly.
+// teardown then releases the device, and runs only once every operation has
+// returned, so it may assume it has exclusive access.
+func (g *ioGate) shutdown(interrupt func(), teardown func() error) error {
+	var err error
+	g.once.Do(func() {
+		g.mu.Lock()
+		g.closed = true
+		g.mu.Unlock()
 
-type wfile struct {
-	fd syscall.Handle
-	rl sync.Mutex
-	wl sync.Mutex
-	ro *syscall.Overlapped
-	wo *syscall.Overlapped
-}
-
-func (f *wfile) Close() error {
-	return syscall.Close(f.fd)
-}
-
-func (f *wfile) Write(b []byte) (int, error) {
-	f.wl.Lock()
-	defer f.wl.Unlock()
-
-	if err := resetEvent(f.wo.HEvent); err != nil {
-		return 0, err
-	}
-	var n uint32
-	err := syscall.WriteFile(f.fd, b, &n, f.wo)
-	if err != nil && err != syscall.ERROR_IO_PENDING {
-		return int(n), err
-	}
-	return getOverlappedResult(f.fd, f.wo)
-}
-
-func (f *wfile) Read(b []byte) (int, error) {
-	f.rl.Lock()
-	defer f.rl.Unlock()
-
-	if err := resetEvent(f.ro.HEvent); err != nil {
-		return 0, err
-	}
-	var done uint32
-	err := syscall.ReadFile(f.fd, b, &done, f.ro)
-	if err != nil && err != syscall.ERROR_IO_PENDING {
-		return int(done), err
-	}
-	return getOverlappedResult(f.fd, f.ro)
-}
-
-func ctl_code(device_type, function, method, access uint32) uint32 {
-	return (device_type << 16) | (access << 14) | (function << 2) | method
-}
-
-func tap_control_code(request, method uint32) uint32 {
-	return ctl_code(file_device_unknown, request, method, 0)
-}
-
-// getdeviceid finds out a TAP device from registry, it *may* requires privileged right to prevent some weird issue.
-func getdeviceid(componentID string, interfaceName string) (deviceid string, err error) {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, tapDriverKey, registry.READ)
-	if err != nil {
-		return "", fmt.Errorf("Failed to open the adapter registry, TAP driver may be not installed, %v", err)
-	}
-	defer k.Close()
-	// read all subkeys, it should not return an err here
-	keys, err := k.ReadSubKeyNames(-1)
-	if err != nil {
-		return "", err
-	}
-	// find the one matched ComponentId
-	for _, v := range keys {
-		key, err := registry.OpenKey(registry.LOCAL_MACHINE, tapDriverKey+"\\"+v, registry.READ)
-		if err != nil {
-			continue
-		}
-		val, _, err := key.GetStringValue("ComponentId")
-		if err != nil {
-			key.Close()
-			continue
-		}
-		if val == componentID {
-			val, _, err = key.GetStringValue("NetCfgInstanceId")
-			if err != nil {
-				key.Close()
-				continue
-			}
-			if len(interfaceName) > 0 {
-				key2 := fmt.Sprintf("%s\\%s\\Connection", netConfigKey, val)
-				k2, err := registry.OpenKey(registry.LOCAL_MACHINE, key2, registry.READ)
-				if err != nil {
-					continue
-				}
-				defer k2.Close()
-				val, _, err := k2.GetStringValue("Name")
-				if err != nil || val != interfaceName {
-					continue
-				}
-			}
-			key.Close()
-			return val, nil
-		}
-		key.Close()
-	}
-	if len(interfaceName) > 0 {
-		return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s' and InterfaceName '%s', TAP driver may be not installed or you may have specified an interface name that doesn't exist", componentID, interfaceName)
-	}
-
-	return "", fmt.Errorf("Failed to find the tap device in registry with specified ComponentId '%s', TAP driver may be not installed", componentID)
-}
-
-// setStatus is used to bring up or bring down the interface
-func setStatus(fd syscall.Handle, status bool) error {
-	var bytesReturned uint32
-	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
-	code := []byte{0x00, 0x00, 0x00, 0x00}
-	if status {
-		code[0] = 0x01
-	}
-	return syscall.DeviceIoControl(fd, tap_ioctl_set_media_status, &code[0], uint32(4), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
-}
-
-// setTUN is used to configure the IP address in the underlying driver when using TUN
-func setTUN(fd syscall.Handle, network string) error {
-	var bytesReturned uint32
-	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
-
-	localIP, remoteNet, err := net.ParseCIDR(network)
-	if err != nil {
-		return fmt.Errorf("Failed to parse network CIDR in config, %v", err)
-	}
-	if localIP.To4() == nil {
-		return fmt.Errorf("Provided network(%s) is not a valid IPv4 address", network)
-	}
-	code2 := make([]byte, 0, 12)
-	code2 = append(code2, localIP.To4()[:4]...)
-	code2 = append(code2, remoteNet.IP.To4()[:4]...)
-	code2 = append(code2, remoteNet.Mask[:4]...)
-	if len(code2) != 12 {
-		return fmt.Errorf("Provided network(%s) is not valid", network)
-	}
-	if err := syscall.DeviceIoControl(fd, tap_ioctl_config_tun, &code2[0], uint32(12), &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil); err != nil {
-		return err
-	}
-	return nil
-}
-
-// openDev find and open an interface.
-func openDev(config Config) (ifce *Interface, err error) {
-	// find the device in registry.
-	deviceid, err := getdeviceid(config.PlatformSpecificParams.ComponentID, config.PlatformSpecificParams.InterfaceName)
-	if err != nil {
-		return nil, err
-	}
-	path := "\\\\.\\Global\\" + deviceid + ".tap"
-	pathp, err := syscall.UTF16PtrFromString(path)
-	if err != nil {
-		return nil, err
-	}
-	// type Handle uintptr
-	file, err := syscall.CreateFile(pathp, syscall.GENERIC_READ|syscall.GENERIC_WRITE, uint32(syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE), nil, syscall.OPEN_EXISTING, syscall.FILE_ATTRIBUTE_SYSTEM|syscall.FILE_FLAG_OVERLAPPED, 0)
-	// if err hanppens, close the interface.
-	defer func() {
-		if err != nil {
-			syscall.Close(file)
-		}
-		if err := recover(); err != nil {
-			syscall.Close(file)
-		}
-	}()
-	if err != nil {
-		return nil, err
-	}
-	var bytesReturned uint32
-
-	// find the mac address of tap device, use this to find the name of interface
-	mac := make([]byte, 6)
-	err = syscall.DeviceIoControl(file, tap_win_ioctl_get_mac, &mac[0], uint32(len(mac)), &mac[0], uint32(len(mac)), &bytesReturned, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// fd := os.NewFile(uintptr(file), path)
-	ro, err := newOverlapped()
-	if err != nil {
-		return
-	}
-	wo, err := newOverlapped()
-	if err != nil {
-		return
-	}
-	fd := &wfile{fd: file, ro: ro, wo: wo}
-	ifce = &Interface{isTAP: (config.DeviceType == TAP), ReadWriteCloser: fd}
-
-	// bring up device.
-	if err := setStatus(file, true); err != nil {
-		return nil, err
-	}
-
-	//TUN
-	if config.DeviceType == TUN {
-		if err := setTUN(file, config.PlatformSpecificParams.Network); err != nil {
-			return nil, err
-		}
-	}
-
-	// find the name of tap interface(u need it to set the ip or other command)
-	ifces, err := net.Interfaces()
-	if err != nil {
-		return
-	}
-
-	for _, v := range ifces {
-		if len(v.HardwareAddr) < 6 {
-			continue
-		}
-		if bytes.Equal(v.HardwareAddr[:6], mac[:6]) {
-			ifce.name = v.Name
-			return
-		}
-	}
-
-	return nil, errIfceNameNotFound
+		interrupt()
+		g.running.Wait()
+		err = teardown()
+	})
+	return err
 }

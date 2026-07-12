@@ -1,6 +1,7 @@
 package water
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -18,6 +19,27 @@ type ifReq struct {
 	Name  [0x10]byte
 	Flags uint16
 	pad   [0x28 - 0x10 - 2]byte
+}
+
+func openDev(config Config) (ifce *Interface, err error) {
+	// O_NONBLOCK hands the fd to the Go runtime's poller, which is what lets
+	// Close() unblock a Read() that is parked waiting for a packet.
+	fd, err := syscall.Open("/dev/net/tun", os.O_RDWR|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	name, err := setupFd(config, uintptr(fd))
+	if err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+
+	return &Interface{
+		isTAP:           config.DeviceType == TAP,
+		ReadWriteCloser: os.NewFile(uintptr(fd), "tun"),
+		name:            name,
+	}, nil
 }
 
 func ioctl(fd uintptr, request uintptr, argp uintptr) error {
@@ -52,6 +74,15 @@ func setupFd(config Config, fd uintptr) (name string, err error) {
 
 func createInterface(fd uintptr, ifName string, flags uint16) (createdIFName string, err error) {
 	var req ifReq
+
+	// req.Name is IFNAMSIZ bytes and has to be NUL-terminated, so a longer name
+	// would be silently truncated and the caller would end up talking to an
+	// interface it did not ask for.
+	if len(ifName) >= len(req.Name) {
+		return "", fmt.Errorf("water: interface name %q is too long, the limit is %d bytes",
+			ifName, len(req.Name)-1)
+	}
+
 	req.Flags = flags
 	copy(req.Name[:], ifName)
 

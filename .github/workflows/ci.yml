@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  vet:
+    name: vet and gofmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -s -l .)
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
+
+      # -unsafeptr=false: water converts the address Wintun hands back for a
+      # packet in its shared ring buffers into a slice. vet cannot tell that
+      # memory apart from a stale Go pointer; see ringMemory in wintun_windows.go.
+      - name: vet
+        run: |
+          for os in linux darwin windows; do
+            echo "== GOOS=$os"
+            GOOS=$os go vet -unsafeptr=false ./...
+          done
+
+      # waterutil is pure packet parsing, so it needs no device and no privilege.
+      # The fuzz target asserts that no malformed packet can panic an accessor.
+      - name: waterutil
+        run: |
+          go test -race ./waterutil/...
+          go test ./waterutil/ -run=XXX -fuzz=FuzzAccessors -fuzztime=60s
+
+  build:
+    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: 386 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: 386 }
+          - { goos: windows, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go build ./...
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+  test-linux:
+    name: test linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      # Creating a TUN/TAP device needs CAP_NET_ADMIN, so build the test binary
+      # as the normal user and run it as root.
+      - name: test
+        run: |
+          go test -c -race -o water.test .
+          sudo ./water.test -test.v -test.timeout 5m
+
+  test-windows:
+    name: test windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      # Wintun is distributed as a DLL that carries the driver inside it. water
+      # looks for it next to the executable, so it goes next to the test binary
+      # -- exactly where a real deployment would put it.
+      - name: install Wintun
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://www.wintun.net/builds/wintun-0.14.1.zip -OutFile wintun.zip
+          Expand-Archive -Path wintun.zip -DestinationPath wintun-dist
+          Copy-Item wintun-dist\wintun\bin\amd64\wintun.dll -Destination .
+
+      # The runner is already an administrator, which is what creating a Wintun
+      # adapter requires. Tests whose driver is missing skip themselves, so the
+      # tap-windows6 cases stay green here without OpenVPN installed.
+      - name: test
+        shell: pwsh
+        run: |
+          go test -c -race -o water.test.exe .
+          .\water.test.exe -test.v -test.timeout 5m
+
+  test-macos:
+    name: test macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: test
+        run: |
+          go test -c -race -o water.test .
+          sudo ./water.test -test.v -test.timeout 5m
