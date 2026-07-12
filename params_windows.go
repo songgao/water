@@ -43,18 +43,30 @@ type PlatformSpecificParams struct {
 	// Only used by the tap-windows6 driver.
 	ComponentID string
 
-	// InterfaceName names the network adapter.
+	// Name names the network adapter.
+	//
+	// This is the portable spelling: Linux and macOS have a Name field too, so
+	// code that sets it compiles for every platform without build tags. On
+	// Windows it means the same thing as InterfaceName, which is the older,
+	// Windows-only spelling of it. If both are set, InterfaceName wins.
 	//
 	// For tap-windows6 it selects among the installed adapters: it is the
-	// friendly name of the adapter as shown in Control Panel, which matters
-	// when several tap0901 adapters exist on the same system. An empty value
-	// picks the first adapter matching ComponentID.
+	// friendly name of the adapter as shown in Control Panel, which matters when
+	// several tap0901 adapters exist on the same system. An empty value picks the
+	// first adapter matching ComponentID.
 	//
-	// For Wintun it is the name given to the adapter that water creates. An
-	// empty value picks the first free name of the form water0, water1, ...
+	// For Wintun it is the name given to the adapter that water creates. An empty
+	// value picks the first free name of the form water0, water1, ...
 	//
 	// Either way Interface.Name() reports the name the adapter ended up with,
 	// which is the name to hand to `netsh interface ip set address name=...`.
+	Name string
+
+	// InterfaceName is the Windows-only spelling of Name, and behaves exactly
+	// like it. It predates Name and is kept so that existing Windows code keeps
+	// compiling; when both are set, this one wins.
+	//
+	// Prefer Name, which also compiles on Linux and macOS.
 	InterfaceName string
 
 	// Network is required when creating a TUN interface with tap-windows6. The

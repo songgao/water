@@ -2,6 +2,46 @@ package water
 
 import "testing"
 
+// TestNameAndInterfaceName pins down how the portable Name spelling and the
+// older Windows-only InterfaceName spelling combine, since cross-platform code
+// wants the former and existing Windows code uses the latter.
+func TestNameAndInterfaceName(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		params        PlatformSpecificParams
+		wantInterface string
+	}{
+		{
+			name:          "Name alone is used",
+			params:        PlatformSpecificParams{Name: "portable"},
+			wantInterface: "portable",
+		},
+		{
+			name:          "InterfaceName alone still works",
+			params:        PlatformSpecificParams{InterfaceName: "windows-only"},
+			wantInterface: "windows-only",
+		},
+		{
+			name:          "InterfaceName wins when both are set",
+			params:        PlatformSpecificParams{Name: "portable", InterfaceName: "windows-only"},
+			wantInterface: "windows-only",
+		},
+		{
+			name:          "neither leaves it empty, so a driver default is picked",
+			params:        PlatformSpecificParams{},
+			wantInterface: "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := Config{DeviceType: TUN, PlatformSpecificParams: tc.params}
+
+			if got := config.interfaceName(); got != tc.wantInterface {
+				t.Errorf("interfaceName() = %q, want %q", got, tc.wantInterface)
+			}
+		})
+	}
+}
+
 func TestRingCapacity(t *testing.T) {
 	for _, tc := range []struct {
 		name      string

@@ -40,6 +40,9 @@ func openDev(config Config) (*Interface, error) {
 		config.Network = defaultNetwork
 	}
 
+	// Collapse the two spellings here, so the drivers below only ever see one.
+	config.InterfaceName = config.interfaceName()
+
 	switch config.Driver {
 	case WindowsDriverWintun:
 		if config.DeviceType != TUN {
@@ -73,6 +76,24 @@ func openDev(config Config) (*Interface, error) {
 	default:
 		return nil, fmt.Errorf("water: unknown Windows driver %d", config.Driver)
 	}
+}
+
+// interfaceName reports the adapter name the caller asked for, reconciling the
+// two ways of spelling it.
+//
+// Name is the portable spelling -- Linux and macOS have a Name field too, so
+// code that sets it needs no build tags. InterfaceName is the older Windows-only
+// spelling, and it wins when both are set, so that existing Windows code keeps
+// behaving exactly as it did.
+//
+// An empty result means the caller did not care, and the driver picks: the first
+// adapter matching ComponentID for tap-windows6, or the first free water<N> for
+// Wintun.
+func (config Config) interfaceName() string {
+	if config.InterfaceName != "" {
+		return config.InterfaceName
+	}
+	return config.Name
 }
 
 // ioGate coordinates in-flight Read and Write calls with Close.
